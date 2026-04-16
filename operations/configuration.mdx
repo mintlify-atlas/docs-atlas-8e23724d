@@ -1,0 +1,252 @@
+---
+title: "TestGen environment variable configuration reference"
+description: "All TestGen environment variables by category: logging, database, security, credentials, project settings, profiling defaults, and observability."
+---
+
+TestGen reads its configuration exclusively from environment variables, making it compatible with Docker, pip, and any orchestration layer that can inject environment at startup. Set these variables before launching the application or running CLI commands. For Docker installations managed by `dk-installer`, edit the generated `docker-compose.yml` to add variables under the `environment` key of the relevant service.
+
+<AccordionGroup>
+
+  <Accordion title="Application settings" defaultOpen={true}>
+
+    These variables control logging behavior and enable debug mode for the web UI.
+
+    <ParamField path="TESTGEN_DEBUG_LOG_LEVEL" type="string" default="no">
+      Sets the log level for all TestGen loggers to `DEBUG`. Accepts `yes` or `no`. Useful when diagnosing issues without enabling full debug mode.
+    </ParamField>
+
+    <ParamField path="TESTGEN_DEBUG" type="string" default="no">
+      Invalidates the UI bootstrap cache on every render so that routing and plugin changes take effect immediately. Also sets the `testgen.ui` logger to `DEBUG` level. Accepts `yes` or `no`. Do not enable in production — it degrades UI performance.
+    </ParamField>
+
+    <ParamField path="TESTGEN_LOG_TO_FILE" type="string" default="yes">
+      When enabled, TestGen writes rotating daily log files in addition to stdout. Accepts `yes` or `no`.
+    </ParamField>
+
+    <ParamField path="TESTGEN_LOG_FILE_PATH" type="string" default="/var/lib/testgen/log">
+      Directory path under which rotating log files are created when `TESTGEN_LOG_TO_FILE` is enabled. The directory must exist and be writable by the TestGen process.
+    </ParamField>
+
+    <ParamField path="TESTGEN_LOG_FILE_MAX_QTY" type="number" default="90">
+      Maximum number of daily log files to retain. Files older than this count are deleted automatically. The default of `90` retains approximately three months of logs.
+    </ParamField>
+
+  </Accordion>
+
+  <Accordion title="Database connection">
+
+    TestGen stores all metadata — projects, connections, profiling results, and test results — in a PostgreSQL database referred to as the application database. These variables configure how TestGen connects to it.
+
+    <ParamField path="TG_METADATA_DB_HOST" type="string" default="localhost">
+      Hostname of the PostgreSQL server hosting the TestGen application database.
+    </ParamField>
+
+    <ParamField path="TG_METADATA_DB_PORT" type="number" default="5432">
+      TCP port on which the PostgreSQL server is listening.
+    </ParamField>
+
+    <ParamField path="TG_METADATA_DB_NAME" type="string" default="datakitchen">
+      Name of the PostgreSQL database in which TestGen creates its schema.
+    </ParamField>
+
+    <ParamField path="TG_METADATA_DB_SCHEMA" type="string" default="testgen">
+      Name of the schema within the database where TestGen tables are stored.
+    </ParamField>
+
+    <ParamField path="TG_METADATA_DB_USER" type="string" default="value of TESTGEN_USERNAME">
+      Username TestGen uses to connect to the application database for normal operations.
+    </ParamField>
+
+    <ParamField path="TG_METADATA_DB_PASSWORD" type="string" default="value of TESTGEN_PASSWORD">
+      Password for `TG_METADATA_DB_USER`.
+    </ParamField>
+
+    <ParamField path="DATABASE_ADMIN_USER" type="string" default="value of TG_METADATA_DB_USER">
+      User with privileges to create roles, databases, and schemas. Required only when `TG_METADATA_DB_USER` lacks those administrative privileges. Used during `setup-system-db` and `upgrade-system-version`.
+    </ParamField>
+
+    <ParamField path="DATABASE_ADMIN_PASSWORD" type="string" default="value of TG_METADATA_DB_PASSWORD">
+      Password for `DATABASE_ADMIN_USER`.
+    </ParamField>
+
+    <ParamField path="DATABASE_EXECUTE_USER" type="string" default="testgen_execute">
+      Database user that TestGen creates and grants read/write access to `test_results`, `test_suites`, and `test_definitions`, with read-only access to all other tables.
+    </ParamField>
+
+    <ParamField path="DATABASE_REPORT_USER" type="string" default="testgen_report">
+      Database user that TestGen creates and grants read-only access to all tables.
+    </ParamField>
+
+  </Accordion>
+
+  <Accordion title="Security">
+
+    These variables protect secrets stored in the application database and sign authentication tokens. Set all three before the first `setup-system-db` run — changing them afterward requires re-encrypting stored credentials.
+
+    <ParamField path="TG_DECRYPT_SALT" type="string" required>
+      ASCII string used as the salt when encrypting and decrypting user secrets such as database passwords. A minimum length of 16 characters is recommended. Only ASCII characters are accepted.
+    </ParamField>
+
+    <ParamField path="TG_DECRYPT_PASSWORD" type="string" required>
+      ASCII passphrase used together with `TG_DECRYPT_SALT` for symmetric encryption of user secrets stored in the database. Only ASCII characters are accepted.
+    </ParamField>
+
+    <ParamField path="TG_JWT_HASHING_KEY" type="string" required>
+      Base64-encoded random key used to sign and verify JWT authentication tokens issued by the TestGen UI. Generate a suitable value with `openssl rand -base64 32`.
+    </ParamField>
+
+    <Warning>
+      `TG_DECRYPT_SALT`, `TG_DECRYPT_PASSWORD`, and `TG_JWT_HASHING_KEY` must be set before initializing the database. Changing them after initialization will make previously stored credentials unreadable.
+    </Warning>
+
+  </Accordion>
+
+  <Accordion title="User credentials">
+
+    These variables define the default administrator account created during database initialization.
+
+    <ParamField path="TESTGEN_USERNAME" type="string" required>
+      Username for the default admin account used to log in to the TestGen web application. Also used as the default value for `TG_METADATA_DB_USER` if that variable is not set explicitly.
+    </ParamField>
+
+    <ParamField path="TESTGEN_PASSWORD" type="string" required>
+      Password for the `TESTGEN_USERNAME` account.
+    </ParamField>
+
+  </Accordion>
+
+  <Accordion title="Project settings">
+
+    When TestGen initializes the database (`setup-system-db`), it creates a default project and connection using these values. They also serve as defaults for CLI commands that accept project or connection arguments.
+
+    <ParamField path="PROJECT_KEY" type="string" default="DEFAULT">
+      Unique code that identifies the auto-generated project. Used as the default `--project-key` value in CLI commands.
+    </ParamField>
+
+    <ParamField path="DEFAULT_PROJECT_NAME" type="string" default="Demo">
+      Display name for the auto-generated project, visible in the UI.
+    </ParamField>
+
+    <ParamField path="PROJECT_SQL_FLAVOR" type="string" default="postgresql">
+      SQL dialect of the database that the auto-generated project connects to. Supported values: `postgresql`, `redshift`, `snowflake`, `mssql`.
+    </ParamField>
+
+    <ParamField path="PROJECT_CONNECTION_NAME" type="string" default="default">
+      Label assigned to the auto-generated database connection.
+    </ParamField>
+
+    <ParamField path="PROJECT_CONNECTION_MAX_THREADS" type="number" default="4">
+      Maximum number of concurrent queries issued to the project database during profiling and test execution.
+    </ParamField>
+
+    <ParamField path="PROJECT_CONNECTION_MAX_QUERY_CHAR" type="number" default="5000">
+      Controls how many individual tests are batched into a single SQL query. Increase this value for better throughput; decrease it to isolate failures more precisely. Accepted range: 500–14000.
+    </ParamField>
+
+    <ParamField path="PROJECT_DATABASE_NAME" type="string" default="demo_db">
+      Name of the database to test against in the auto-generated project.
+    </ParamField>
+
+    <ParamField path="PROJECT_DATABASE_SCHEMA" type="string" default="demo">
+      Name of the schema within `PROJECT_DATABASE_NAME` that tests will target.
+    </ParamField>
+
+    <ParamField path="PROJECT_DATABASE_HOST" type="string" default="value of TG_METADATA_DB_HOST">
+      Hostname of the database server under test.
+    </ParamField>
+
+    <ParamField path="PROJECT_DATABASE_PORT" type="string" default="value of TG_METADATA_DB_PORT">
+      Port of the database server under test.
+    </ParamField>
+
+    <ParamField path="PROJECT_DATABASE_USER" type="string" default="value of TG_METADATA_DB_USER">
+      Username TestGen uses to connect to the project database when running tests.
+    </ParamField>
+
+    <ParamField path="PROJECT_DATABASE_PASSWORD" type="string" default="value of TG_METADATA_DB_PASSWORD">
+      Password for `PROJECT_DATABASE_USER`.
+    </ParamField>
+
+    <ParamField path="TG_TARGET_DB_TRUST_SERVER_CERTIFICATE" type="string" default="no">
+      When set to `yes`, TestGen configures SQLAlchemy to skip TLS certificate verification when connecting to the project database. Supported for applicable SQL flavors only. Accepts `yes` or `no`.
+    </ParamField>
+
+    <ParamField path="DEFAULT_TABLE_GROUPS_NAME" type="string" default="default">
+      Name assigned to the auto-generated table group.
+    </ParamField>
+
+    <ParamField path="DEFAULT_TEST_SUITE_NAME" type="string" default="default-suite-1">
+      Key assigned to the auto-generated test suite. Used as the default `--test-suite-key` in CLI commands.
+    </ParamField>
+
+    <ParamField path="DEFAULT_TEST_SUITE_DESCRIPTION" type="string" default="default_suite_desc">
+      Description text for the auto-generated test suite.
+    </ParamField>
+
+  </Accordion>
+
+  <Accordion title="Profiling defaults">
+
+    These variables set the default table selection and sampling behavior for the auto-generated table group. They use SQL `LIKE` pattern syntax: `%` matches any sequence of characters, `_` matches any single character.
+
+    <ParamField path="DEFAULT_PROFILING_TABLE_SET" type="string">
+      Comma-separated list of specific table names to include when profiling. When set, TestGen profiles only the listed tables rather than discovering tables via the include/exclude masks. Leave empty to use mask-based selection.
+    </ParamField>
+
+    <ParamField path="DEFAULT_PROFILING_INCLUDE_MASK" type="string" default="%">
+      SQL `LIKE` pattern for table names to include in profiling. The default `%` matches all tables. Example: `sales_%` includes only tables whose names begin with `sales_`.
+    </ParamField>
+
+    <ParamField path="DEFAULT_PROFILING_EXCLUDE_MASK" type="string" default="tmp%">
+      SQL `LIKE` pattern for table names to exclude from profiling. The default `tmp%` excludes any table whose name starts with `tmp`.
+    </ParamField>
+
+    <ParamField path="DEFAULT_PROFILING_ID_COLUMN_MASK" type="string" default="%id">
+      SQL `LIKE` pattern that TestGen uses to identify primary key or ID columns. Columns matching this pattern receive special treatment during profiling and test generation.
+    </ParamField>
+
+    <ParamField path="DEFAULT_PROFILING_SK_COLUMN_MASK" type="string" default="%sk">
+      SQL `LIKE` pattern that TestGen uses to identify surrogate key columns.
+    </ParamField>
+
+    <ParamField path="DEFAULT_PROFILING_USE_SAMPLING" type="string" default="N">
+      When set to `Y`, TestGen profiles a statistical sample of rows rather than scanning the full table. Useful for very large tables where full scans are impractical. Accepts `Y` or `N`.
+    </ParamField>
+
+  </Accordion>
+
+  <Accordion title="Observability export">
+
+    Configure these variables to enable the `export-observability` CLI command, which sends test results to a DataOps Observability instance. You can also set `OBSERVABILITY_API_URL` and `OBSERVABILITY_API_KEY` through the Settings page in the TestGen UI.
+
+    <ParamField path="OBSERVABILITY_API_URL" type="string">
+      Base URL of your DataOps Observability instance. Example: `https://observability.example.com`.
+    </ParamField>
+
+    <ParamField path="OBSERVABILITY_API_KEY" type="string">
+      API key with permission to send events to the Observability instance.
+    </ParamField>
+
+    <ParamField path="TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL" type="string" default="yes">
+      When set to `no`, TestGen skips TLS certificate verification when posting events to the Observability API. Set to `no` only in development environments with self-signed certificates. Accepts `yes` or `no`.
+    </ParamField>
+
+    <ParamField path="TG_OBSERVABILITY_EXPORT_MAX_QTY" type="number" default="5000">
+      Maximum number of events sent to the Observability events API in a single export operation. Reduce this value if exports time out.
+    </ParamField>
+
+    <ParamField path="OBSERVABILITY_DEFAULT_COMPONENT_TYPE" type="string" default="dataset">
+      Event component type sent to the Observability API. This value is included in every exported event.
+    </ParamField>
+
+    <ParamField path="OBSERVABILITY_DEFAULT_COMPONENT_KEY" type="string" default="default">
+      Component key sent to the Observability API to identify the source component of each exported event.
+    </ParamField>
+
+  </Accordion>
+
+</AccordionGroup>
+
+<Tip>
+  For pip installations, the recommended approach is to collect environment variables in a `local.env` file and source it before running `testgen` commands: `source local.env`.
+</Tip>

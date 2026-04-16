@@ -1,0 +1,289 @@
+---
+title: "MCP Tools Reference: TestGen Discovery and Results"
+description: "Full reference for all nine TestGen MCP tools covering discovery, test run retrieval, result inspection, failure summaries, and test type lookups."
+---
+
+The TestGen MCP server registers nine tools that AI agents call to explore your data quality landscape. All tools return formatted markdown strings. Identifiers are UUIDs passed as strings; dates use ISO 8601 format. Tools are protected by the authenticated user's project-level role, so results are automatically scoped to projects the token owner can access.
+
+<Note>
+  Test type names have specific, non-obvious meanings. Never interpret a test type name without first looking it up using `get_test_type` or the `testgen://test-types` resource.
+</Note>
+
+---
+
+## Discovery
+
+These four tools help you explore what exists in TestGen — projects, table groups, and test suites. Start here before querying results.
+
+### `get_data_inventory`
+
+Returns a complete structural overview of all projects, connections, table groups, and test suites accessible to the authenticated user. This is the recommended entry point for any agent session.
+
+**Parameters:** none
+
+**Returns:** A structured markdown document listing every project with its connections, table groups, and test suites, including test definition counts and latest run statistics.
+
+**Required permission:** `catalog`
+
+---
+
+### `list_projects`
+
+Lists every project the authenticated user can access, with project codes and names. Use project codes to scope subsequent queries.
+
+**Parameters:** none
+
+**Returns:** A markdown list of projects in the format `**Project Name** (\`project_code\`)`.
+
+**Required permission:** `catalog`
+
+---
+
+### `list_test_suites`
+
+Lists all test suites in a project with their latest run statistics: test counts, pass/fail/warning/error counts, and the latest run ID.
+
+<ParamField path="project_code" type="string" required>
+  The project code to list test suites for. Obtain from `list_projects` or `get_data_inventory`.
+</ParamField>
+
+**Returns:** A markdown document with one section per test suite. Each section includes the connection name, table group, test definition count, and latest run summary.
+
+**Required permission:** `view`
+
+---
+
+### `list_tables`
+
+Lists tables in a table group with pagination support. Use this to discover which tables are included in a group before filtering test results by table name.
+
+<ParamField path="table_group_id" type="string" required>
+  UUID of the table group. Obtain from `get_data_inventory`.
+</ParamField>
+
+<ParamField path="limit" type="number" default="200">
+  Maximum number of tables per page.
+</ParamField>
+
+<ParamField path="page" type="number" default="1">
+  Page number, starting from 1. The response includes a prompt to fetch the next page when more results exist.
+</ParamField>
+
+**Returns:** A markdown list of table names. The response includes the total table count and a page indicator if results span multiple pages.
+
+**Required permission:** `catalog`
+
+---
+
+## Test runs
+
+### `get_recent_test_runs`
+
+Retrieves the latest test runs for each test suite in a project, ordered by start time descending. Use this to find run IDs before querying results.
+
+<ParamField path="project_code" type="string" required>
+  The project code to query. Obtain from `list_projects`.
+</ParamField>
+
+<ParamField path="test_suite" type="string">
+  Optional test suite name to filter by. When omitted, returns runs for all suites in the project.
+</ParamField>
+
+<ParamField path="limit" type="number" default="1">
+  Maximum number of runs to return per test suite.
+</ParamField>
+
+**Returns:** A markdown document grouped by test suite. Each run entry includes:
+
+- Run ID (UUID)
+- Start and end timestamps
+- Total test count with pass / fail / warning / error breakdown
+- Dismissed count (if any)
+- Testing score (if available)
+
+**Required permission:** `view`
+
+---
+
+## Test results
+
+### `get_test_results`
+
+Retrieves individual test results for a specific test run, with optional filters. Use this to inspect the outcome of every test definition in a run.
+
+<ParamField path="test_run_id" type="string" required>
+  UUID of the test run. Obtain from `get_recent_test_runs`.
+</ParamField>
+
+<ParamField path="status" type="string">
+  Filter by result status. Valid values: `Passed`, `Failed`, `Warning`, `Error`, `Log`.
+</ParamField>
+
+<ParamField path="table_name" type="string">
+  Filter results to a single table.
+</ParamField>
+
+<ParamField path="test_type" type="string">
+  Filter by test type short name, for example `Alpha Truncation` or `Unique Percent`. Use `get_test_type` to look up valid names.
+</ParamField>
+
+<ParamField path="limit" type="number" default="50">
+  Maximum number of results per page.
+</ParamField>
+
+<ParamField path="page" type="number" default="1">
+  Page number, starting from 1.
+</ParamField>
+
+**Returns:** A markdown document with one section per result. Each result includes:
+
+- Status (`[Passed]`, `[Failed]`, `[Warning]`, `[Error]`, `[Log]`)
+- Test type name, table name, and column name (when applicable)
+- Test definition ID
+- Measured value and threshold
+- Failure message (when present)
+
+**Required permission:** `view`
+
+---
+
+### `get_failure_summary`
+
+Returns an aggregated count of confirmed failures (Failed and Warning statuses) for a test run, grouped by test type, table, or column. Use this to quickly identify which areas have the most problems before drilling into individual results.
+
+<ParamField path="test_run_id" type="string" required>
+  UUID of the test run. Obtain from `get_recent_test_runs`.
+</ParamField>
+
+<ParamField path="group_by" type="string" default="test_type">
+  Grouping dimension. Valid values: `test_type`, `table`, `column`.
+</ParamField>
+
+**Returns:** A markdown table showing the total confirmed failure count and a breakdown by the chosen dimension.
+
+- `test_type` grouping: test type name, severity (Failed/Warning), count
+- `table` grouping: table name, count
+- `column` grouping: column and table name, count
+
+When grouping by `test_type`, the response appends a reminder to check `testgen://test-types` for type definitions.
+
+**Required permission:** `view`
+
+---
+
+### `get_test_result_history`
+
+Retrieves the historical results of a single test definition across multiple test runs, ordered newest first. Use this to track whether a test is getting better or worse over time.
+
+<ParamField path="test_definition_id" type="string" required>
+  UUID of the test definition. Obtain from the `test_definition_id` field in `get_test_results` output.
+</ParamField>
+
+<ParamField path="limit" type="number" default="20">
+  Maximum number of historical entries per page.
+</ParamField>
+
+<ParamField path="page" type="number" default="1">
+  Page number, starting from 1.
+</ParamField>
+
+**Returns:** A markdown document with:
+
+- Test type, table name, and column name (when applicable)
+- A table with columns: Date, Measure, Threshold, Status — one row per historical result
+
+**Required permission:** `view`
+
+---
+
+## Reference
+
+### `get_test_type`
+
+Looks up detailed information about a specific test type. Always use this tool (or the `testgen://test-types` resource) before interpreting test type names — names like `Alpha_Trunc` have non-obvious meanings.
+
+<ParamField path="test_type" type="string" required>
+  The test type short name, for example `Alpha Truncation` or `Unique Percent`. Names are case-sensitive.
+</ParamField>
+
+**Returns:** A markdown document with:
+
+- Full name
+- Description
+- Unit of measure and measure description
+- Threshold description
+- Data quality dimension (Accuracy, Completeness, Consistency, Timeliness, Uniqueness, Validity)
+- Scope (column, table, referential, custom)
+- Exception message format
+- Usage notes
+
+If the type is not found, the response tells you to check `testgen://test-types` for valid names.
+
+---
+
+## Resources
+
+Resources are read-only data endpoints. Unlike tools, they are fetched by URI rather than called with parameters.
+
+### `testgen://test-types`
+
+A complete reference table of all active test types. Use this as a lookup before interpreting test type names in results.
+
+**Returns:** A markdown table with columns: Test Type, Quality Dimension, Scope, Description.
+
+### `testgen://glossary`
+
+Definitions for the TestGen entity hierarchy, result statuses, disposition values, data quality dimensions, and test scopes.
+
+**Returns:** A markdown glossary covering:
+
+- Entity hierarchy (Project → Connection → Table Group → Test Suite → Test Definition → Test Run → Test Result)
+- Result statuses (Passed, Warning, Failed, Error, Log)
+- Disposition (Confirmed, Dismissed, Muted)
+- Data quality dimensions
+- Test scopes
+
+---
+
+## Tool naming conventions
+
+- Tool names use `snake_case`.
+- Parameters that accept entity IDs expect UUID strings, for example `"a1b2c3d4-..."`.
+- Optional `limit` and `page` parameters are available on all list tools for pagination.
+- All tools enforce the authenticated user's project memberships. Requests for projects the user cannot access return a `not found` message rather than a permission error, to avoid leaking project existence.
+
+---
+
+## Typical usage sequence
+
+The following sequence covers the most common investigation workflow:
+
+<Steps>
+  <Step title="Discover the inventory">
+    Call `get_data_inventory()` to get a complete overview of projects, connections, table groups, and test suites.
+  </Step>
+  <Step title="Find recent test runs">
+    Call `get_recent_test_runs(project_code='...')` to obtain test run IDs for the project.
+  </Step>
+  <Step title="Summarize failures">
+    Call `get_failure_summary(test_run_id='...')` to identify which test types, tables, or columns have the most failures.
+  </Step>
+  <Step title="Look up test types">
+    For any unfamiliar test type name, call `get_test_type(test_type='...')` to understand what the test checks before drawing conclusions.
+  </Step>
+  <Step title="Inspect individual results">
+    Call `get_test_results(test_run_id='...', status='Failed')` to see detailed result entries including measured values and thresholds.
+  </Step>
+  <Step title="Track history">
+    Call `get_test_result_history(test_definition_id='...')` to see whether a failing test is a regression or a persistent issue.
+  </Step>
+</Steps>
+
+<CardGroup cols={2}>
+  <Card title="MCP server overview" icon="server" href="/reference/mcp-overview">
+    How to enable the server, generate tokens, and connect clients.
+  </Card>
+  <Card title="Review test results guide" icon="check-circle" href="/guides/review-results">
+    How to review and act on test results in the TestGen UI.
+  </Card>
+</CardGroup>

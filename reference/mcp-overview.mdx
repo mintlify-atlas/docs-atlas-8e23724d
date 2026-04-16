@@ -1,0 +1,169 @@
+---
+title: "MCP Server: Connect AI Agents to TestGen Data Quality"
+description: "Connect AI coding assistants to TestGen via the Model Context Protocol server. Enable the MCP module, generate JWT tokens, and query data quality results."
+---
+
+The TestGen MCP server exposes your data quality inventory, test results, and profiling data to any AI agent or coding assistant that speaks the [Model Context Protocol](https://modelcontextprotocol.io). Once enabled, tools like Claude Code can discover projects, inspect test run outcomes, and investigate failures without requiring direct database access or custom scripting.
+
+## How it works
+
+TestGen runs an HTTP MCP server alongside the web UI and scheduler. The server authenticates every request using a short-lived JWT bearer token, then filters the data it returns to the projects and permissions of the token's owner. Tools receive structured markdown responses they can pass directly to an LLM context window.
+
+The server is built on [FastMCP](https://github.com/jlowin/fastmcp) and served by [uvicorn](https://www.uvicorn.org) on a configurable host and port.
+
+## Enabling the MCP server
+
+The MCP server is off by default. Set the `TG_MCP_ENABLED` environment variable to `yes` before starting TestGen, then run the `mcp` module.
+
+<Steps>
+  <Step title="Set the environment variable">
+    Add `TG_MCP_ENABLED=yes` to your environment or `.env` file before starting TestGen.
+
+    ```bash
+    export TG_MCP_ENABLED=yes
+    ```
+  </Step>
+  <Step title="Start the MCP server">
+    Run the `mcp` module with `run-app`. You can start only the MCP server or all modules together.
+
+    <CodeGroup>
+
+    ```bash MCP server only
+    testgen run-app mcp
+    ```
+
+    ```bash All modules (UI + scheduler + MCP)
+    testgen run-app all
+    ```
+
+    </CodeGroup>
+  </Step>
+  <Step title="Verify it is running">
+    The server logs its address on startup:
+
+    ```
+    Starting MCP server on 0.0.0.0:8510 (auth issuer: http://your-host:8510)
+    ```
+  </Step>
+</Steps>
+
+## MCP server URL
+
+The MCP endpoint path is `/mcp`. The full URL is derived from the persisted `BASE_URL` setting, replacing the port with `TG_MCP_PORT` (default `8510`):
+
+```
+http://<your-testgen-host>:8510/mcp
+```
+
+If no `BASE_URL` is set, the server falls back to `http://localhost:8510`.
+
+## Authentication
+
+Every MCP request must include a JWT bearer token. Generate one with the `mcp-token` command:
+
+```bash
+testgen mcp-token --username <user> --password <password>
+```
+
+The command prints the token, the MCP server URL, and a ready-to-run connection example. Tokens are signed using the same secret as the TestGen web UI and carry the user's identity and expiry.
+
+<Warning>
+  Treat tokens like passwords. They grant the same project-level access as the user's web UI role. Rotate tokens by running `mcp-token` again.
+</Warning>
+
+## Connecting an MCP client
+
+Pass the token as an `Authorization: Bearer` header when registering the server with your client.
+
+<CodeGroup>
+
+```bash Claude Code
+claude mcp add --transport http testgen http://<host>:8510/mcp \
+  --header "Authorization: Bearer <token>"
+```
+
+```bash Generic HTTP client
+# Any MCP client that supports Streamable HTTP transport
+# Set the header:  Authorization: Bearer <token>
+# Endpoint:        http://<host>:8888/mcp
+```
+
+</CodeGroup>
+
+<Tip>
+  The `mcp-token` command prints the exact `claude mcp add` command with your token pre-filled. Copy and run it directly.
+</Tip>
+
+## Data model
+
+The server instructions embedded in the MCP server describe the entity hierarchy every AI agent receives at session start:
+
+> *Projects contain Connections (to target databases) and Table Groups (sets of tables to profile and test together). Table Groups contain Test Suites — collections of Test Definitions with configured thresholds. Test Runs execute a Test Suite and produce Test Results (one per Test Definition). Profiling Runs scan a Table Group and produce column-level statistics and detect data hygiene issues. Monitors track table health over time: freshness, volume, schema changes, and custom metrics.*
+
+All entity identifiers are UUIDs passed as strings. Dates use ISO 8601 format.
+
+```
+Project
+├── Connection  (target database credentials)
+└── Table Group (set of tables)
+    └── Test Suite
+        ├── Test Definition  (configured test + thresholds)
+        └── Test Run
+            └── Test Result  (one per Test Definition)
+```
+
+### Navigating the hierarchy
+
+Tools return IDs you feed into other tools. The recommended starting point is `get_data_inventory`, which returns a complete markdown overview of every project, connection, table group, and test suite accessible to your token. From there you drill down:
+
+1. `get_data_inventory` → discover all projects and suites
+2. `get_recent_test_runs` → find the latest run IDs
+3. `get_test_results` or `get_failure_summary` → inspect specific runs
+4. `get_test_result_history` → track a single test over time
+
+### Test types
+
+Test type names like `Alpha_Trunc` have specific, non-obvious meanings. **Never guess** what a test checks. Always look up the type using the `testgen://test-types` resource or the `get_test_type` tool before interpreting results.
+
+## Available tools
+
+The server exposes nine tools organized into three categories. See the full reference for parameters and return values.
+
+<CardGroup cols={2}>
+  <Card title="Discovery tools" icon="magnifying-glass" href="/reference/mcp-tools">
+    `get_data_inventory`, `list_projects`, `list_tables`, `list_test_suites`
+  </Card>
+  <Card title="Test run tools" icon="play" href="/reference/mcp-tools">
+    `get_recent_test_runs`
+  </Card>
+  <Card title="Test result tools" icon="chart-bar" href="/reference/mcp-tools">
+    `get_test_results`, `get_failure_summary`, `get_test_result_history`
+  </Card>
+  <Card title="Reference tools" icon="book" href="/reference/mcp-tools">
+    `get_test_type` and the `testgen://test-types` resource
+  </Card>
+</CardGroup>
+
+## Resources and prompts
+
+In addition to tools, the server provides two read-only resources and four guided prompts:
+
+| Resource / Prompt | Purpose |
+|---|---|
+| `testgen://test-types` | Full reference table of all active test types with quality dimensions |
+| `testgen://glossary` | Definitions of TestGen concepts, result statuses, and quality dimensions |
+| `health_check` prompt | Runs a comprehensive data quality check across all projects |
+| `investigate_failures` prompt | Guides root-cause analysis for test failures |
+| `table_health` prompt | Assesses data quality for a specific table |
+| `compare_runs` prompt | Compares the two most recent test runs for regressions |
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="MCP tools reference" icon="wrench" href="/reference/mcp-tools">
+    Parameters, return values, and usage for all nine MCP tools.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli-overview">
+    All testgen CLI commands including mcp-token.
+  </Card>
+</CardGroup>

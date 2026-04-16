@@ -1,97 +1,67 @@
 ---
-title: "Introduction"
-description: "Welcome to the new home for your documentation"
+title: "DataOps TestGen: Open Source Data Quality Platform"
+description: "DataOps TestGen profiles your databases, auto-generates data quality tests, and continuously monitors for anomalies — all from a single UI or CLI."
 ---
 
-## Setting up
+DataOps TestGen is DataKitchen's open-source data quality platform. It scans your databases, learns their characteristics through profiling, generates validation tests automatically, and continuously watches for anomalies in freshness, volume, schema drift, and custom metrics. You can operate TestGen entirely through its web UI, automate workflows via CLI, or connect AI agents through the built-in MCP server.
 
-Get your documentation site up and running in minutes.
-
-<Card
-  title="Start here"
-  icon="rocket"
-  href="/quickstart"
-  horizontal
->
-  Follow our three step quickstart guide.
-</Card>
-
-## Make it yours
-
-Design a docs site that looks great and empowers your users.
-
-<Columns cols={2}>
-  <Card
-    title="Edit locally"
-    icon="pen-to-square"
-    href="/development"
-  >
-    Edit your docs locally and preview them in real time.
+<CardGroup cols={2}>
+  <Card title="Quick Start" icon="rocket" href="/quickstart">
+    Run the demo and see TestGen in action in under 10 minutes.
   </Card>
-  <Card
-    title="Customize your site"
-    icon="palette"
-    href="/essentials/settings"
-  >
-    Customize the design and colors of your site to match your brand.
+  <Card title="Install with Docker" icon="docker" href="/installation/docker">
+    Deploy TestGen as a Docker Compose application with the dk-installer.
   </Card>
-    <Card
-    title="Set up navigation"
-    icon="map"
-    href="/essentials/navigation"
-  >
-    Organize your docs to help users find what they need and succeed with your product.
+  <Card title="Connect Your Database" icon="database" href="/guides/connect-database">
+    Connect PostgreSQL, Snowflake, Redshift, MSSQL, Databricks, and more.
   </Card>
-  <Card
-    title="API documentation"
-    icon="terminal"
-    href="/api-reference/introduction"
-  >
-    Auto-generate API documentation from OpenAPI specifications.
+  <Card title="CLI Reference" icon="terminal" href="/reference/cli-overview">
+    Automate profiling, test generation, and test execution from the command line.
   </Card>
-</Columns>
+</CardGroup>
 
-## Create beautiful pages
+## How TestGen works
 
-Everything you need to create world-class documentation.
+TestGen follows a four-step data quality workflow that takes you from raw database to continuous quality monitoring.
 
-<Columns cols={2}>
-  <Card
-    title="Write with MDX"
-    icon="pen-fancy"
-    href="/essentials/markdown"
-  >
-    Use MDX to style your docs pages.
-  </Card>
-  <Card
-    title="Code samples"
-    icon="code"
-    href="/essentials/code"
-  >
-    Add sample code to demonstrate how to use your product.
-  </Card>
-  <Card
-    title="Images"
-    icon="image"
-    href="/essentials/images"
-  >
-    Display images and other media.
-  </Card>
-  <Card
-    title="Reusable snippets"
-    icon="recycle"
-    href="/essentials/reusable-snippets"
-  >
-    Write once and reuse across your docs.
-  </Card>
-</Columns>
+<Steps>
+  <Step title="Profile your data">
+    Point TestGen at a table group in your database. The profiler scans every column and computes statistics — value distributions, nullability, uniqueness, patterns, and more — building a detailed picture of your data's shape.
+  </Step>
+  <Step title="Generate tests automatically">
+    Based on the profile, TestGen generates hundreds of tailored data quality validation tests. Tests cover completeness, consistency, validity, uniqueness, referential integrity, and statistical thresholds — no manual authoring required.
+  </Step>
+  <Step title="Run tests on every data refresh">
+    Execute your test suite against each new data load. TestGen compares results against the generated thresholds and flags failures with detailed drill-downs showing exactly which rows and columns failed and why.
+  </Step>
+  <Step title="Monitor continuously for anomalies">
+    Set up monitors to track freshness, row volume, schema changes, and custom metrics over time. TestGen surfaces anomalies automatically and can send notifications when thresholds are breached.
+  </Step>
+</Steps>
 
-## Need inspiration?
+## Key capabilities
 
-<Card
-  title="See complete examples"
-  icon="stars"
-  href="https://mintlify.com/customers"
->
-  Browse our showcase of exceptional documentation sites.
-</Card>
+<CardGroup cols={2}>
+  <Card title="Data Profiling" icon="chart-bar" href="/concepts/table-groups-and-profiling">
+    Deep column-level statistics covering distributions, uniqueness, nullability, and data patterns across all supported databases.
+  </Card>
+  <Card title="Test Generation" icon="wand-magic-sparkles" href="/concepts/test-suites-and-tests">
+    Algorithmically generate hundreds of data quality checks from profiling results — no SQL or code required.
+  </Card>
+  <Card title="Anomaly Monitoring" icon="bell" href="/concepts/monitors-and-anomalies">
+    Continuously track freshness, volume, and schema drift. Get alerts before data issues reach your users.
+  </Card>
+  <Card title="Quality Scorecards" icon="star" href="/guides/review-results">
+    Visualize quality scores across datasets, drill into failures, and export detailed results for stakeholders.
+  </Card>
+  <Card title="MCP Server" icon="robot" href="/reference/mcp-overview">
+    Let AI agents query profiling results, test outcomes, and anomaly data through the Model Context Protocol.
+  </Card>
+  <Card title="Multi-Database Support" icon="server" href="/reference/database-support">
+    PostgreSQL, Snowflake, Redshift, MSSQL, Databricks, BigQuery, Trino, SAP HANA, and Oracle.
+  </Card>
+</CardGroup>
+
+<Note>
+  TestGen is open-source under the Apache 2.0 license. Join the community on [Slack](https://data-observability-slack.datakitchen.io/join) for support and discussion.
+</Note>

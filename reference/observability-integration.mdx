@@ -1,0 +1,153 @@
+---
+title: "DataOps Observability Integration: Export Test Results"
+description: "Configure TestGen to export test results as dataset events to DataOps Observability, including required variables, CLI command, and event field details."
+---
+
+DataOps Observability is DataKitchen's platform for monitoring data pipelines end-to-end. When you connect TestGen to an Observability instance, test results flow from TestGen into Observability as dataset events. This lets you track data quality alongside pipeline runs, set up cross-system alerting, and give data engineering and operations teams a single view of data health.
+
+## How the integration works
+
+TestGen does not push events automatically on every test run. Instead, you run the `export-observability` CLI command — manually or on a schedule — to send test results from a specific project and test suite to the Observability events API. The API accepts the events, correlates them with pipeline components, and surfaces them in the Observability UI.
+
+Each test result becomes one dataset event. Observability uses the component type and component key to map the event to the correct pipeline component.
+
+## Configuration
+
+Set the following environment variables before running TestGen. `OBSERVABILITY_API_URL` and `OBSERVABILITY_API_KEY` are required for the export to function.
+
+<ParamField path="OBSERVABILITY_API_URL" type="string" required>
+  Full API URL of your DataOps Observability instance, for example `https://observability.example.com/api`. Obtain this from your Observability admin.
+</ParamField>
+
+<ParamField path="OBSERVABILITY_API_KEY" type="string" required>
+  Authentication key with permission to send events to your Observability instance. Generate this in the Observability UI under **Settings → API Keys**.
+</ParamField>
+
+<ParamField path="TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL" type="string" default="yes">
+  Controls SSL certificate verification when TestGen calls the Observability events API. Set to `no` only for development or self-signed certificate environments.
+</ParamField>
+
+<ParamField path="TG_OBSERVABILITY_EXPORT_MAX_QTY" type="number" default="5000">
+  Maximum number of events sent to the Observability API in a single export call. If a test run contains more results than this limit, split the export across multiple calls using different test suites or time ranges.
+</ParamField>
+
+<ParamField path="OBSERVABILITY_DEFAULT_COMPONENT_TYPE" type="string" default="dataset">
+  The Observability event type sent for each test result. Use `dataset` to map results to dataset components in your Observability pipelines.
+</ParamField>
+
+<ParamField path="OBSERVABILITY_DEFAULT_COMPONENT_KEY" type="string" default="default">
+  The Observability component key used to identify which pipeline component the events belong to. Set this to the key of the component you want TestGen results to appear under.
+</ParamField>
+
+---
+
+## Exporting test results
+
+Use the `export-observability` command to push test results from a project and test suite to Observability.
+
+```bash
+testgen export-observability \
+  --project-key <project_key> \
+  --test-suite-key <test_suite_key>
+```
+
+The command sends all qualifying test results for the specified test suite to the Observability events API and exits with a success message on completion.
+
+<Note>
+  The command uses the `OBSERVABILITY_API_URL` and `OBSERVABILITY_API_KEY` environment variables. Make sure they are set before running the export.
+</Note>
+
+### Quick-start flags
+
+If you run the `quick-start` command to populate a demo environment, you can configure the Observability connection at the same time:
+
+```bash
+testgen quick-start \
+  --observability-api-url https://observability.example.com/api \
+  --observability-api-key <your_api_key>
+```
+
+These flags set `OBSERVABILITY_API_URL` and `OBSERVABILITY_API_KEY` for the duration of the quick-start run.
+
+---
+
+## Setting up the integration
+
+<Steps>
+  <Step title="Obtain Observability credentials">
+    In your DataOps Observability instance, go to **Settings → API Keys** and create a key with event-write permissions. Copy the key and the API base URL.
+  </Step>
+  <Step title="Set environment variables">
+    Add the required variables to your environment or `.env` file:
+
+    ```bash
+    OBSERVABILITY_API_URL=https://observability.example.com/api
+    OBSERVABILITY_API_KEY=your_api_key_here
+    ```
+  </Step>
+  <Step title="Configure component mapping (optional)">
+    If your Observability pipelines use non-default component types or keys, set:
+
+    ```bash
+    OBSERVABILITY_DEFAULT_COMPONENT_TYPE=dataset
+    OBSERVABILITY_DEFAULT_COMPONENT_KEY=my-pipeline-component
+    ```
+  </Step>
+  <Step title="Run a test suite">
+    Run a test suite so there are results to export:
+
+    ```bash
+    testgen run-tests --test-suite-id <uuid>
+    ```
+  </Step>
+  <Step title="Export the results">
+    Export the test results to Observability:
+
+    ```bash
+    testgen export-observability \
+      --project-key DEFAULT \
+      --test-suite-key default-suite-1
+    ```
+  </Step>
+  <Step title="Verify in Observability">
+    Open your Observability instance and check the events view for the target component. Test results should appear as dataset events.
+  </Step>
+</Steps>
+
+---
+
+## Scheduling exports
+
+To keep Observability up to date automatically, schedule the `export-observability` command to run after each test suite execution. The TestGen scheduler and CLI are both suitable for this. See the [scheduling operations guide](/operations/scheduling) for details.
+
+<Tip>
+  Schedule `export-observability` as a post-step after `run-tests` so Observability always receives the most recent results.
+</Tip>
+
+---
+
+## Troubleshooting
+
+<Warning>
+  If `TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL` is set to `yes` and your Observability instance uses a self-signed or internal CA certificate, the export will fail with an SSL error. Either configure a valid certificate on the Observability server or set the variable to `no` in controlled environments.
+</Warning>
+
+| Symptom | Likely cause | Resolution |
+|---|---|---|
+| `Connection refused` or `Could not resolve host` | `OBSERVABILITY_API_URL` is incorrect or unreachable | Verify the URL and network connectivity |
+| `401 Unauthorized` | `OBSERVABILITY_API_KEY` is missing or expired | Regenerate the key in Observability and update the variable |
+| SSL verification error | Self-signed certificate and `TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL=yes` | Set to `no` or install a trusted certificate |
+| Export completes but no events appear | Component key or type mismatch | Align `OBSERVABILITY_DEFAULT_COMPONENT_TYPE` and `OBSERVABILITY_DEFAULT_COMPONENT_KEY` with the Observability pipeline configuration |
+
+---
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Export to Observability guide" icon="arrow-up-right" href="/guides/export-to-observability">
+    Step-by-step walkthrough for connecting TestGen to Observability.
+  </Card>
+  <Card title="Configuration reference" icon="gear" href="/operations/configuration">
+    All environment variables supported by TestGen.
+  </Card>
+</CardGroup>

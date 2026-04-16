@@ -1,0 +1,142 @@
+---
+title: "Monitors and Anomalies: Continuous Table Health Tracking"
+description: "Learn how TestGen monitors detect freshness gaps, volume shifts, and schema drift — and how the monitors dashboard surfaces anomalies with trend charts."
+keywords: ["monitors", "anomalies", "freshness", "volume trend", "schema drift", "anomaly detection", "continuous monitoring"]
+---
+
+**Monitors** are a specialized category of test suite designed for continuous operational health tracking rather than periodic data quality validation. Where a regular test suite checks whether your data meets defined thresholds, monitors watch for unexpected changes over time — a table that stopped receiving new rows, a row count that dropped by half, a column that disappeared from the schema. TestGen runs monitors on a schedule, accumulates a rolling history of results, and surfaces deviations from the expected pattern as **anomalies** on the monitors dashboard.
+
+## How monitors differ from regular tests
+
+Regular test suites answer the question "does my data meet its quality rules right now?" Monitors answer the question "is my data behaving the way it normally does?"
+
+| | Regular test suites | Monitors |
+|---|---|---|
+| **Purpose** | Validate data correctness | Track operational health over time |
+| **Tests generated from** | Profiling column statistics | Table-level behavior (freshness, volume, schema) |
+| **Run timing** | On demand or scheduled | Scheduled continuously |
+| **Result evaluation** | Compare against static threshold | Detect deviation from historical trend |
+| **Quality score** | Contributes to quality score | Excluded from quality score by default |
+| **Training period** | None | New monitors collect baseline data before flagging anomalies |
+
+## Monitor types
+
+TestGen generates three types of monitors for each table in a table group:
+
+### Freshness_Trend
+
+Tracks how recently each table received new data. The freshness monitor detects when a table's latest update timestamp falls outside the expected window — indicating that an upstream pipeline may have stalled or failed to deliver data.
+
+The freshness monitor compares each run's detected "last updated" time against the table's typical refresh cadence. During the training period, it learns when the table normally updates and how much variation is acceptable. After training, any run where the data appears unexpectedly stale is flagged as an anomaly.
+
+### Volume_Trend
+
+Tracks the row count of each table over time. The volume monitor detects when the number of rows is significantly higher or lower than the historical baseline — which can indicate a missing data load, a duplicate ingestion, or a downstream filter that removed too many records.
+
+Volume anomalies are reported alongside the expected upper and lower tolerance bands so you can see exactly how far the current count deviated from the expected range.
+
+### Schema_Drift
+
+Tracks structural changes to each table — columns being added, dropped, or modified. Unlike freshness and volume monitors (which detect statistical deviations), the schema drift monitor fires whenever the table's column structure changes relative to the most recent baseline.
+
+Schema drift results indicate:
+- **Added** — one or more columns were added to the table
+- **Dropped** — one or more columns were removed
+- **Modified** — a column's data type or other property changed
+
+<Info>
+The Freshness_Trend monitor requires at least one completed profiling run for the table group before it can be generated. Volume_Trend and Schema_Drift monitors are generated immediately when you set up monitoring for a table group.
+</Info>
+
+## Anomaly detection
+
+An anomaly is a monitor result where the observed value falls outside the expected range. What constitutes "expected" depends on the monitor type and the amount of historical data available.
+
+### Training mode
+
+When monitors are first set up for a table group, they enter a **training** period. During training, TestGen collects historical measurements without flagging anomalies. This allows the system to establish a baseline before it begins evaluating results. You can see which monitors are in training mode from the monitors dashboard — training indicators appear next to the freshness, volume, and metric columns for each table.
+
+Once sufficient history is accumulated (controlled by the `predict_min_lookback` setting on the monitor suite), training completes and the monitor begins detecting anomalies.
+
+### Sensitivity
+
+The **predict_sensitivity** setting on the monitor suite controls how wide the anomaly tolerance band is:
+
+| Sensitivity | Behavior |
+|---|---|
+| `low` | Wider tolerance — fewer anomalies flagged, less noise |
+| `medium` | Balanced default |
+| `high` | Tighter tolerance — more sensitive, more anomalies flagged |
+
+### Lookback window
+
+The **monitor_lookback** setting controls how many recent test runs are included when evaluating the current state. A larger lookback averages over more history, smoothing out short-term fluctuations. Results within the lookback window are used to compute the anomaly counts shown on the dashboard.
+
+## The monitors dashboard
+
+The monitors dashboard provides a per-table view of your table group's operational health. For each table, it shows:
+
+- The number of freshness, volume, schema, and custom metric anomalies detected within the lookback window
+- The most recent row count and timestamp of last detected update
+- Any structural changes (column additions, drops, or modifications)
+- Whether a monitor is in training mode or waiting for its first run
+
+You can click into any table to open its **trend view**, which shows historical graphs of freshness intervals, row counts, and schema changes over time. The trend view also displays predicted future values (where available) alongside the historical series, making it easy to spot when the current value deviates from the expected trajectory.
+
+<Tip>
+Use the anomaly type filter on the monitors dashboard to focus on just freshness, volume, schema, or metric anomalies. This helps you triage quickly when multiple tables have issues at the same time.
+</Tip>
+
+## Notifications
+
+TestGen can send notifications when monitors detect anomalies. Notifications are configured per table group and can be scoped to a specific table or applied to all tables in the group.
+
+The default trigger is **on anomalies** — notifications fire when a monitor run produces one or more anomaly results. You can configure notification recipients and channels (such as email or Slack) from the **Monitor Notifications** dialog accessible from the monitors dashboard.
+
+<Note>
+See [Notifications](/operations/notifications) for details on configuring notification channels and recipients.
+</Note>
+
+## Setting up monitoring
+
+Monitoring is configured per table group. You can enable it when you first create a table group by going through the setup wizard, or you can add it later by clicking **Configure Monitors** on the monitors dashboard for a table group that does not yet have monitoring enabled.
+
+When you configure monitors, you set:
+
+- A **cron schedule** and timezone for how often monitors run
+- The **lookback** window (number of runs to include when evaluating the current state)
+- The **prediction sensitivity** (how tightly anomalies are defined)
+- Whether to exclude weekends and public holidays from freshness calculations
+- The minimum number of historical runs required before training completes
+
+<AccordionGroup>
+  <Accordion title="How is the Freshness_Trend monitor different from a completeness test?">
+    A completeness test checks whether a column meets a null-rate threshold at a specific point in time. The Freshness_Trend monitor tracks whether the table received new data within its expected refresh window — it is about pipeline timeliness, not column completeness. The two complement each other.
+  </Accordion>
+  <Accordion title="Can I add custom metric monitors?">
+    Yes. In addition to the auto-generated Freshness, Volume, and Schema monitors, you can add **Metric_Trend** monitors for custom SQL expressions on specific columns. Custom metric monitors are configured per table from the monitors dashboard.
+  </Accordion>
+  <Accordion title="What happens if a monitored table is dropped?">
+    TestGen records the table drop as a Schema_Drift anomaly. The table continues to appear in the monitors dashboard with a "dropped" state indicator until the lookback window passes.
+  </Accordion>
+  <Accordion title="How do I delete monitors for a table group?">
+    From the monitors dashboard, use the **Delete Monitors** action. This removes the monitor test suite and all historical monitor results for the table group. This action cannot be undone.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Set up anomaly monitoring" icon="bell" href="/guides/anomaly-monitoring">
+    Step-by-step guide to enabling and configuring monitors for a table group.
+  </Card>
+  <Card title="Notifications" icon="envelope" href="/operations/notifications">
+    Configure where and when TestGen sends anomaly alerts.
+  </Card>
+  <Card title="Scheduling" icon="clock" href="/operations/scheduling">
+    Set cron schedules to run monitors automatically.
+  </Card>
+  <Card title="Test suites and tests" icon="check-circle" href="/concepts/test-suites-and-tests">
+    Understand the difference between monitors and regular data quality tests.
+  </Card>
+</CardGroup>

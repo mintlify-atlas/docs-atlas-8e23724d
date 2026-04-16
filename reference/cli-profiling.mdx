@@ -1,0 +1,142 @@
+---
+title: "TestGen CLI: Profiling Commands Reference"
+description: "Reference for testgen profiling commands: run-profile, list-table-groups, list-profiles, get-profile, and get-profile-anomalies with all flags and examples."
+---
+
+Profiling commands let you analyze the structure and content of your data sources, inspect historical profile runs, and surface statistical anomalies. Run `run-profile` on a regular schedule to keep your profiling data current; use the listing and detail commands to investigate results programmatically.
+
+---
+
+## run-profile
+
+Generates a new profile of a table group. Profiling collects statistics about every column in every table in the group, including data types, null rates, distinct value counts, and distribution metrics.
+
+```bash
+testgen run-profile --table-group-id <id>
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--table-group-id` | `-tg` | string | Yes | — | ID of the table group to profile. Use an ID from `list-table-groups`. |
+
+### Example
+
+```bash
+testgen run-profile --table-group-id 0ea85e17-acbe-47fe-8394-9970725ad37d
+```
+
+<Note>
+  Profile run IDs are generated at runtime. After the run completes, use `list-profiles` to retrieve the new ID for downstream commands.
+</Note>
+
+---
+
+## list-profiles
+
+Lists all profile runs recorded for a specific table group. Results are saved to `list_profiles.csv` in the current directory.
+
+```bash
+testgen list-profiles --table-group-id <id> [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--table-group-id` | `-tg` | string | Yes | — | ID of the table group. Use an ID from `list-table-groups`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-profiles --table-group-id 0ea85e17-acbe-47fe-8394-9970725ad37d --display
+```
+
+---
+
+## get-profile
+
+Fetches column-level profiling details for a specific profile run. Use `--table-name` to narrow the output to a single table. Results are saved to `get_profile.csv`.
+
+```bash
+testgen get-profile --profile-run-id <id> [--table-name <name>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--profile-run-id` | `-pr` | string | Yes | — | ID of the profile run. Use an ID from `list-profiles`. |
+| `--table-name` | `-tn` | string | No | `null` | Filter output to a single table present in the profile run. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Examples
+
+```bash
+# All tables in the profile run
+testgen get-profile --profile-run-id <profile-run-id>
+
+# Single table, printed to terminal
+testgen get-profile --profile-run-id <profile-run-id> --table-name orders --display
+```
+
+---
+
+## get-profile-anomalies
+
+Fetches anomalies detected during a profile run. Anomalies represent unusual patterns or deviations that TestGen identified during statistical analysis. Results are saved to `get_profile_anomalies.csv`.
+
+```bash
+testgen get-profile-anomalies --profile-run-id <id> [--table-name <name>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--profile-run-id` | `-pr` | string | Yes | — | ID of the profile run. Use an ID from `list-profiles`. |
+| `--table-name` | `-tn` | string | No | `null` | Filter output to a single table present in the profile run. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Examples
+
+```bash
+# All anomalies for a profile run
+testgen get-profile-anomalies --profile-run-id <profile-run-id>
+
+# Anomalies for a specific table, printed to terminal
+testgen get-profile-anomalies --profile-run-id <profile-run-id> --table-name customers --display
+```
+
+---
+
+## list-table-groups
+
+Lists all table groups in a project. Table groups define which database tables TestGen profiles and tests. Results are saved to `list_table_groups.csv`.
+
+```bash
+testgen list-table-groups [--project-key <key>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | `DEFAULT` | Project key. Use a key from `list-projects`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Examples
+
+```bash
+# Default project
+testgen list-table-groups --display
+
+# Specific project
+testgen list-table-groups --project-key my_project --display
+```
+
+<Tip>
+  Copy a `table_group_id` from the output of `list-table-groups` to use it with `run-profile`, `list-profiles`, and related commands.
+</Tip>

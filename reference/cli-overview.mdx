@@ -1,0 +1,134 @@
+---
+title: "TestGen CLI Reference: Commands Overview"
+description: "Complete reference for the testgen command-line interface. Covers installation, global flags, and all commands grouped by category."
+---
+
+The `testgen` CLI gives you full programmatic control over DataOps TestGen — from initializing the system database to running profiling jobs, executing test suites, and exporting results. You can use it directly on a host machine after installing the Python package, or run it inside the official Docker container.
+
+## Installation
+
+<Tabs>
+  <Tab title="pip">
+    Install the `dataops-testgen` package from PyPI. Python 3.12 or later is required.
+
+    ```bash
+    pip install dataops-testgen
+    ```
+
+    After installation the `testgen` command is available on your `PATH`.
+  </Tab>
+  <Tab title="Docker">
+    The official image ships with `testgen` pre-installed. Pass any command as the Docker `CMD`:
+
+    ```bash
+    docker run --rm datakitchen/dataops-testgen:latest testgen --help
+    ```
+  </Tab>
+</Tabs>
+
+## Global flag
+
+The only flag that applies to every command is `--verbose`. It must appear **before** the subcommand name.
+
+| Flag | Short | Default | Description |
+|------|-------|---------|-------------|
+| `--verbose` | `-v` | `false` | Enables debug-level logging for the entire run. |
+
+```bash
+testgen --verbose run-profile --table-group-id <id>
+```
+
+<Warning>
+  Placing `-v` after the subcommand name has no effect. Always put it immediately after `testgen`.
+</Warning>
+
+## Commands by category
+
+### Application
+
+Commands for running and initializing the TestGen application itself.
+
+| Command | Description |
+|---------|-------------|
+| [`run-app`](/reference/cli-data#run-app) | Runs TestGen application modules (`all`, `ui`, `scheduler`, `mcp`). |
+| [`setup-system-db`](/reference/cli-data#setup-system-db) | Initializes the TestGen PostgreSQL system database. |
+| [`upgrade-system-version`](/reference/cli-data#upgrade-system-version) | Upgrades the database schema to the current version. |
+| [`quick-start`](/reference/cli-data#quick-start) | Loads sample data for a demo environment. |
+| [`mcp-token`](/reference/cli-data#mcp-token) | Generates a JWT for MCP server authentication. |
+
+### Profiling
+
+Commands for profiling data sources and inspecting profiling results.
+
+| Command | Description |
+|---------|-------------|
+| [`run-profile`](/reference/cli-profiling#run-profile) | Profiles a table group and stores the results. |
+| [`list-table-groups`](/reference/cli-profiling#list-table-groups) | Lists all table groups in a project. |
+| [`list-profiles`](/reference/cli-profiling#list-profiles) | Lists all profile runs for a table group. |
+| [`get-profile`](/reference/cli-profiling#get-profile) | Fetches column-level details for a profile run. |
+| [`get-profile-anomalies`](/reference/cli-profiling#get-profile-anomalies) | Fetches anomalies detected during a profile run. |
+
+### Test management
+
+Commands for generating, running, and monitoring tests.
+
+| Command | Description |
+|---------|-------------|
+| [`run-test-generation`](/reference/cli-testing#run-test-generation) | Generates or refreshes tests for a test suite. |
+| [`run-monitor-generation`](/reference/cli-testing#run-monitor-generation) | Generates or refreshes monitors for a monitor suite. |
+| [`run-tests`](/reference/cli-testing#run-tests) | Executes tests defined in a test suite. |
+| [`run-monitors`](/reference/cli-testing#run-monitors) | Executes monitors defined in a monitor suite. |
+
+### Listing and inspection
+
+Commands for listing resources in your TestGen tenant.
+
+| Command | Description |
+|---------|-------------|
+| [`list-projects`](/reference/cli-data#list-projects) | Lists all projects in the tenant. |
+| [`list-connections`](/reference/cli-data#list-connections) | Lists all database connections in the tenant. |
+| [`list-table-groups`](/reference/cli-profiling#list-table-groups) | Lists table groups in a project. |
+| [`list-test-suites`](/reference/cli-testing#list-test-suites) | Lists test suites in a project. |
+| [`list-profiles`](/reference/cli-profiling#list-profiles) | Lists profile runs for a table group. |
+| [`list-test-generation`](/reference/cli-testing#list-test-generation) | Lists test generation summaries for a test suite. |
+| [`list-tests`](/reference/cli-testing#list-tests) | Lists all generated tests in a test suite. |
+| [`list-test-runs`](/reference/cli-testing#list-test-runs) | Lists all test runs for a test suite. |
+| [`list-test-types`](/reference/cli-testing#list-test-types) | Lists all available TestGen test types. |
+
+### Fetching details
+
+Commands for retrieving detailed records.
+
+| Command | Description |
+|---------|-------------|
+| [`get-profile`](/reference/cli-profiling#get-profile) | Column-level details for a profile run. |
+| [`get-profile-anomalies`](/reference/cli-profiling#get-profile-anomalies) | Anomalies detected during a profile run. |
+| [`get-test-suite`](/reference/cli-testing#get-test-suite) | Details for a specific test suite. |
+| [`get-test-results`](/reference/cli-testing#get-test-results) | Results for a specific test run. |
+
+### Export
+
+Commands for exporting data out of TestGen.
+
+| Command | Description |
+|---------|-------------|
+| [`export-observability`](/reference/cli-data#export-observability) | Sends test results to DataOps Observability. |
+| [`export-test-metadata`](/reference/cli-data#export-test-metadata) | Exports test metadata records to YAML files. |
+
+### UI management
+
+| Command | Description |
+|---------|-------------|
+| [`ui plugins`](/reference/cli-data#ui-plugins) | Lists all installed UI plugins. |
+
+## Output behavior
+
+Most listing and detail commands write their results to a CSV file in the current directory (for example, `list_profiles.csv`). Pass the `--display` / `-d` flag to also print the table to your terminal.
+
+```bash
+testgen list-test-suites --display
+```
+
+## Automatic schema upgrades
+
+If your system database schema is outdated, TestGen automatically runs `upgrade-system-version` before executing the requested command. You can suppress this behavior by running `upgrade-system-version` manually ahead of time.

@@ -1,0 +1,145 @@
+---
+title: "Configure email notifications for TestGen run events"
+description: "Configure SMTP to receive email alerts when profiling runs complete, tests fail, monitors detect anomalies, or quality scores drop below thresholds."
+---
+
+TestGen sends HTML email notifications when key events occur — a profiling run finishes, a test run produces failures, a monitor detects anomalies, or a quality score drops below a configured threshold. Notifications are delivered over SMTP and configured through a combination of environment variables (SMTP server settings) and per-event notification rules created in the UI.
+
+## SMTP configuration
+
+All notification types share a single SMTP configuration. Set the following environment variables before starting TestGen. All five variables are required for notifications to send.
+
+<ParamField path="TG_EMAIL_FROM_ADDRESS" type="string" required>
+  The sender address that appears in the `From` field of every notification email. Example: `testgen-alerts@example.com`.
+</ParamField>
+
+<ParamField path="TG_SMTP_ENDPOINT" type="string" required>
+  Hostname of the SMTP server. Example: `smtp.sendgrid.net` or `email-smtp.us-east-1.amazonaws.com`.
+</ParamField>
+
+<ParamField path="TG_SMTP_PORT" type="number" required>
+  TCP port for the SMTP connection. TestGen connects using SMTP over SSL. Common values are `465` (SMTPS) or `587` (STARTTLS — check your provider's requirements).
+</ParamField>
+
+<ParamField path="TG_SMTP_USERNAME" type="string" required>
+  Username for SMTP authentication.
+</ParamField>
+
+<ParamField path="TG_SMTP_PASSWORD" type="string" required>
+  Password for SMTP authentication.
+</ParamField>
+
+<Note>
+  When TestGen starts, it evaluates whether all five SMTP variables are set and stores the result in the `SMTP_CONFIGURED` persisted setting in the application database. The TestGen UI uses this flag to show or hide notification configuration options. If you add or update SMTP variables, restart the application to refresh the flag.
+</Note>
+
+## Notification events and triggers
+
+TestGen supports four notification events. Each event has its own set of trigger conditions that control when emails are sent.
+
+<AccordionGroup>
+
+  <Accordion title="Profiling run notifications" defaultOpen={true}>
+
+    Profiling run notifications are scoped to a table group. Configure them in the UI on the **Table Groups** page.
+
+    **Available triggers:**
+
+    | Trigger | When an email is sent |
+    |---|---|
+    | `always` | After every completed profiling run, whether or not issues were found |
+    | `on_changes` | Only when new hygiene issues are detected, or when a run ends with an error or is cancelled |
+
+    **What the email contains:**
+
+    - Project name, table group name, and schema
+    - Run start time, duration, and status
+    - Count of tables and columns profiled
+    - Hygiene issues summary broken down by priority: Definite, Likely, Possible, and Potential PII (High and Moderate risk)
+    - Sample list of individual issues, with new issues marked
+    - Direct links to the profiling results and hygiene issues pages in the TestGen UI
+
+  </Accordion>
+
+  <Accordion title="Test run notifications">
+
+    Test run notifications are scoped to a test suite. Configure them in the UI on the **Test Suites** page.
+
+    **Available triggers:**
+
+    | Trigger | When an email is sent |
+    |---|---|
+    | `always` | After every completed test run |
+    | `on_failures` | Only when there are test failures or execution errors |
+    | `on_warnings` | When there are failures, warnings, or errors |
+    | `on_changes` | Only when new failures, warnings, or errors appear compared to the previous run |
+
+    **What the email contains:**
+
+    - Project, table group, and test suite name
+    - Run start time and duration
+    - Visual progress bar showing counts of passed, warning, failed, error, and log results
+    - Sample list of failures, warnings, and errors, with new results marked
+    - Direct link to the test run results page in the TestGen UI
+
+  </Accordion>
+
+  <Accordion title="Monitor run notifications">
+
+    Monitor notifications are scoped to a table group's monitor suite. Configure them in the UI on the **Monitors** page.
+
+    **Available triggers:**
+
+    | Trigger | When an email is sent |
+    |---|---|
+    | `on_anomalies` | Only when one or more anomalies are detected in a monitor run |
+
+    You can optionally scope a monitor notification to a single table within the table group.
+
+    **What the email contains:**
+
+    - Project, table group, and optionally table name
+    - Run timestamp
+    - Anomaly summary tags for each monitor type: Freshness, Volume, Schema, and Metric
+    - List of anomalies with table name, monitor type, and details
+    - Direct link to the Monitors page in the TestGen UI
+
+  </Accordion>
+
+  <Accordion title="Quality score drop notifications">
+
+    Score drop notifications are scoped to a scorecard definition. Configure them in the UI on the **Quality Dashboard** page.
+
+    Emails are sent when a scorecard's Total Score or CDE Score drops below a threshold you define. The notification includes the current score, the previous score, and the magnitude of the change.
+
+    Each notification rule requires at least one threshold value (Total or CDE). Thresholds are expressed as percentages from 0 to 100.
+
+  </Accordion>
+
+</AccordionGroup>
+
+## Configuring notification rules in the UI
+
+Each notification rule stores a list of recipient email addresses and a trigger condition. Multiple rules can be created for the same event to send different content or to different recipients under different conditions.
+
+<Steps>
+  <Step title="Verify SMTP is configured">
+    Navigate to **Settings** in the TestGen UI and confirm that the SMTP status shows as configured. If it does not, check that all five `TG_SMTP_*` environment variables are set and restart the application.
+  </Step>
+  <Step title="Open the relevant page">
+    - For profiling run notifications: **Table Groups**, then open the table group.
+    - For test run notifications: **Test Suites**, then open the test suite.
+    - For monitor notifications: **Monitors**, then open the table group.
+    - For score drop notifications: **Quality Dashboard**, then open the scorecard.
+  </Step>
+  <Step title="Add a notification rule">
+    Click **Add Notification**. Enter one or more recipient email addresses (comma-separated) and select the trigger condition. Save the rule.
+  </Step>
+  <Step title="Test the configuration">
+    Trigger a manual run using the UI or CLI. If the run meets the trigger condition, the configured recipients receive an email from `TG_EMAIL_FROM_ADDRESS`.
+  </Step>
+</Steps>
+
+<Warning>
+  TestGen connects to the SMTP server using SSL. Make sure your SMTP provider supports SSL on the configured port. If the connection fails, errors are logged to the TestGen application log but will not surface in the UI.
+</Warning>

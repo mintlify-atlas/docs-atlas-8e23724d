@@ -1,0 +1,280 @@
+---
+title: "TestGen CLI: Testing Commands Reference"
+description: "Reference for testgen testing commands: run-test-generation, run-tests, run-monitors, list-test-suites, get-test-results, and more — with all flags and examples."
+---
+
+Testing commands cover the full lifecycle of data quality checks in TestGen — generating tests from profiling data, running them against live sources, and fetching the results. Monitor commands follow the same pattern but target time-series anomaly detection suites.
+
+---
+
+## run-test-generation
+
+Generates or refreshes tests for a test suite based on the most recent profiling data. You can target a suite by its UUID (`--test-suite-id`) or by key (`--test-suite-key`). If neither is provided, TestGen uses the configured default test suite.
+
+```bash
+testgen run-test-generation [--test-suite-id <id>] [--table-group-id <id>] \
+  [--test-suite-key <key>] [--generation-set <set>]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--test-suite-id` | `-t` | string | No | — | UUID of the test suite to generate. Use an ID from `list-test-suites`. |
+| `--table-group-id` | `-tg` | string | No | — | UUID of the table group. Used for backward-compatible lookup when `--test-suite-id` is not provided. |
+| `--test-suite-key` | `-ts` | string | No | — | Key of the test suite. Used for backward-compatible lookup when `--test-suite-id` is not provided. |
+| `--generation-set` | `-gs` | string | No | `Standard` | Named subset of tests to generate. Use a generation set defined for your project. |
+
+### Examples
+
+```bash
+# Generate using a test suite UUID
+testgen run-test-generation --test-suite-id 9df7489d-92b3-49f9-95ca-512160d7896f
+
+# Generate using a key
+testgen run-test-generation --test-suite-key my_suite
+
+# Generate a non-standard set
+testgen run-test-generation --test-suite-id <id> --generation-set Extended
+```
+
+---
+
+## run-monitor-generation
+
+Generates or refreshes monitors for a monitor suite. Monitors track freshness trends, volume trends, and schema drift over time.
+
+```bash
+testgen run-monitor-generation --test-suite-id <id>
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--test-suite-id` | `-t` | string | Yes | — | UUID of the monitor suite. Use an ID from `list-test-suites`. |
+
+### Example
+
+```bash
+testgen run-monitor-generation --test-suite-id 823a1fef-9b6d-48d5-9d0f-2db9812cc318
+```
+
+---
+
+## run-tests
+
+Executes the tests defined in a test suite against the live data source. Pass `--test-suite-id` to target a specific suite by UUID.
+
+```bash
+testgen run-tests [--test-suite-id <id>]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--test-suite-id` | `-t` | string | No | — | UUID of the test suite to run. Use an ID from `list-test-suites`. |
+| `--project-key` | `-pk` | string | No | project default | **Deprecated.** Use `--test-suite-id` instead. |
+| `--test-suite-key` | `-ts` | string | No | suite default | **Deprecated.** Use `--test-suite-id` instead. |
+
+<Warning>
+  `--project-key` and `--test-suite-key` are deprecated. They exist for backward compatibility only. Use `--test-suite-id` for all new workflows.
+</Warning>
+
+### Example
+
+```bash
+testgen run-tests --test-suite-id 9df7489d-92b3-49f9-95ca-512160d7896f
+```
+
+---
+
+## run-monitors
+
+Executes the monitors defined in a monitor suite against the live data source.
+
+```bash
+testgen run-monitors --test-suite-id <id>
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--test-suite-id` | `-t` | string | Yes | — | UUID of the monitor suite to run. Use an ID from `list-test-suites`. |
+
+### Example
+
+```bash
+testgen run-monitors --test-suite-id 823a1fef-9b6d-48d5-9d0f-2db9812cc318
+```
+
+---
+
+## list-test-suites
+
+Lists all test suites in a project. Results are saved to `list_test_suites.csv`.
+
+```bash
+testgen list-test-suites [--project-key <key>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | project default | Project key. Use a key from `list-projects`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-test-suites --project-key my_project --display
+```
+
+---
+
+## list-test-generation
+
+Lists a summary of test generation runs for a test suite, including dates and table, column, and test counts. Results are saved to `list_test_generation.csv`.
+
+```bash
+testgen list-test-generation [--project-key <key>] [--test-suite-key <key>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | project default | Project key. Use a key from `list-projects`. |
+| `--test-suite-key` | `-ts` | string | No | suite default | Key of the test suite. Use a key from `list-test-suites`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-test-generation --project-key my_project --test-suite-key my_suite --display
+```
+
+---
+
+## list-tests
+
+Lists all individual tests generated for a test suite. Results are saved to `list_tests.csv`.
+
+```bash
+testgen list-tests [--project-key <key>] [--test-suite-key <key>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | project default | Project key. Use a key from `list-projects`. |
+| `--test-suite-key` | `-ts` | string | No | suite default | Key of the test suite. Use a key from `list-test-suites`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-tests --project-key my_project --test-suite-key my_suite --display
+```
+
+---
+
+## list-test-types
+
+Lists all test types available in TestGen. Results are saved to `list_test_types.csv`.
+
+```bash
+testgen list-test-types [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-test-types --display
+```
+
+---
+
+## list-test-runs
+
+Lists all test runs performed for a test suite. Results are saved to `list_test_runs.csv`.
+
+```bash
+testgen list-test-runs [--project-key <key>] [--test-suite-key <key>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | project default | Project key. Use a key from `list-projects`. |
+| `--test-suite-key` | `-ts` | string | No | suite default | Key of the test suite. Use a key from `list-test-suites`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-test-runs --project-key my_project --test-suite-key my_suite --display
+```
+
+---
+
+## get-test-suite
+
+Fetches details for a specific test suite. Results are saved to `get_test_suite.csv`.
+
+```bash
+testgen get-test-suite [--project-key <key>] [--test-suite-key <key>] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | project default | Project key. Use a key from `list-projects`. |
+| `--test-suite-key` | `-ts` | string | No | `null` | Key of the test suite. Use a key from `list-test-suites`. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen get-test-suite --project-key my_project --test-suite-key my_suite --display
+```
+
+---
+
+## get-test-results
+
+Fetches test results for a specific test run. Use `--fails-only` to filter down to failed outcomes only. Results are saved to `get_test_results.csv`.
+
+```bash
+testgen get-test-results --test-run-id <id> [--fails-only] [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--test-run-id` | `-tr` | string | Yes | — | UUID of the test run. Use an ID from `list-test-runs`. |
+| `--fails-only` | `-f` | flag | No | `false` | Filter results to show only failed outcomes. |
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Examples
+
+```bash
+# All results for a run
+testgen get-test-results --test-run-id <test-run-id> --display
+
+# Failed results only
+testgen get-test-results --test-run-id <test-run-id> --fails-only --display
+```

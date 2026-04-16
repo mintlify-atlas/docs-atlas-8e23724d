@@ -1,0 +1,141 @@
+---
+title: "Test Suites and Tests: Automated Data Quality Checks"
+description: "Learn how Test Suites collect data quality tests, how test generation creates checks from profiling results, and how test runs produce quality scores."
+keywords: ["test suite", "test generation", "test run", "data quality", "test definitions", "quality score", "scorecard"]
+---
+
+A **Test Suite** is a named collection of data quality tests associated with a specific table group. It is the container you use to organize, generate, run, and review tests. Once you have profiled a table group, you create a test suite and generate test definitions from the profiling results — TestGen reads the column statistics and automatically writes hundreds of tailored checks that reflect your data's actual shape. When you run the test suite, TestGen executes those checks against your current data and surfaces any failures with detailed context.
+
+## What a test suite is
+
+Test suites belong to a table group and inherit its connection settings. Each table group can have multiple test suites — for example, you might keep a `core_checks` suite for your most critical validations and a `extended_checks` suite for broader coverage. You can also exclude a test suite from quality scoring, which is useful for exploratory or monitoring-only suites.
+
+### Test suite fields
+
+| Field | Description |
+|---|---|
+| **Name** | A unique identifier for the test suite within the project |
+| **Description** | Optional label for documentation purposes |
+| **Table group** | The table group this suite tests |
+| **Severity** | Default severity override — `Warning`, `Failed`, or `Log` — applied to all tests unless overridden at the test level |
+| **Export to Observability** | Whether to push test results to DataKitchen DataOps Observability |
+| **Exclude from quality scoring** | Whether to omit this suite's results from the project's overall quality score |
+
+## Test generation
+
+Test generation is the process of reading a table group's most recent profiling results and automatically creating test definitions. You trigger it from a test suite with the **Generate Tests** action.
+
+### Generation sets
+
+TestGen supports two generation sets that control which test types are created:
+
+- **Standard** — generates the full library of data quality tests appropriate for regular validation. This is the default for non-monitoring test suites.
+- **Monitor** — generates monitoring-specific tests (Freshness_Trend, Volume_Trend, Schema_Drift) used by the continuous monitoring feature.
+
+<Info>
+The Standard generation set is for data quality testing. Monitor test generation is handled automatically when you enable monitoring for a table group — you do not invoke it directly for monitor suites.
+</Info>
+
+### Types of tests generated
+
+TestGen generates tests across several quality dimensions based on the characteristics of each column:
+
+| Category | Examples |
+|---|---|
+| **Completeness** | Null rate does not exceed the observed baseline; required fields are non-null |
+| **Consistency** | Values stay within observed min/max range; data types remain stable |
+| **Validity** | Values match expected patterns; enumerated columns contain only known values |
+| **Uniqueness** | Columns identified as unique keys do not contain duplicates |
+| **Referential integrity** | Foreign key values exist in their reference table |
+| **Statistical** | Row count stays within a percentage of the baseline; numeric distributions remain within tolerance |
+
+TestGen selects which tests to generate for each column based on the column's data type, cardinality, null rate, and other profiling statistics. A date column gets different tests than a numeric column; a low-cardinality string column (such as a status field) gets value-set tests that a free-text column does not.
+
+## Test definitions
+
+Each generated test is stored as a **test definition**. A test definition captures:
+
+| Field | Description |
+|---|---|
+| **Test type** | The specific check being performed (e.g., `Completeness`, `Unique_Values`, `Numeric_Range`) |
+| **Table name** | The table the test targets |
+| **Column name** | The column the test targets (or blank for table-level tests) |
+| **Threshold value** | The baseline value used to evaluate the test |
+| **Operator** | The comparison operator (e.g., `>=`, `<=`, `between`) |
+| **Lower tolerance** | Minimum acceptable value |
+| **Upper tolerance** | Maximum acceptable value |
+| **Active** | Whether the test runs when the suite is executed |
+| **Locked** | Whether auto-regeneration is prevented (useful for manually customized tests) |
+
+You can review, edit, and disable individual test definitions from the Test Definitions page within a test suite. Locking a definition prevents automatic regeneration from overwriting your changes.
+
+<Tip>
+After generating tests, review the definitions before running them for the first time. Look for any thresholds that seem too tight or too loose for your specific use case, and adjust them as needed.
+</Tip>
+
+## Test run lifecycle
+
+When you execute a test suite, TestGen creates a **test run** record and evaluates each active test definition against your current data.
+
+1. **Started** — the test run begins and a progress record is created.
+2. **Executed** — each active test definition is evaluated by querying your target database.
+3. **Compared** — results are compared against the stored thresholds.
+4. **Flagged** — tests that fail their threshold are marked with a result status.
+5. **Scored** — a quality score for the run is computed and stored.
+6. **Completed** — all results are available for review.
+
+### Result statuses
+
+Each test in a run produces one of the following result statuses:
+
+| Status | Meaning |
+|---|---|
+| **Passed** | The data met the test's threshold |
+| **Warning** | The data was outside tolerance but not at the failure threshold |
+| **Failed** | The data failed the test threshold |
+| **Error** | The test could not be executed (e.g., a query error) |
+| **Log** | Informational — the test ran but was not evaluated against a threshold |
+
+You can **dismiss** a result to acknowledge it without treating it as an active failure. Dismissed results are excluded from quality score calculations.
+
+## Quality scores and scorecards
+
+After each test run, TestGen computes a **data quality score** for the test suite. The score is a percentage reflecting how many tests passed versus the total number of active tests. Scores are aggregated up to the table group and project level.
+
+Scorecards give you a high-level view of data quality across your datasets. You can drill from the scorecard into individual runs, then into specific test results and even the underlying source data that caused a failure.
+
+<Note>
+Test suites marked **Exclude from quality scoring** do not contribute to quality score calculations. This is the default for monitor suites, which track operational health rather than data correctness.
+</Note>
+
+<AccordionGroup>
+  <Accordion title="How often should I regenerate tests?">
+    Regenerate tests after significant schema changes or when the underlying data distribution changes substantially. TestGen respects locked test definitions during regeneration, so any manual customizations you have applied are preserved.
+  </Accordion>
+  <Accordion title="Can I write custom tests?">
+    Yes. In addition to auto-generated tests, you can manually add test definitions with custom SQL conditions, subset filters, and threshold values directly in the Test Definitions editor.
+  </Accordion>
+  <Accordion title="What happens to old test runs?">
+    Each execution creates a new test run record. Previous runs and their results are retained. You can delete old runs from the Test Suites page if you need to reclaim storage.
+  </Accordion>
+  <Accordion title="How do I schedule automated test runs?">
+    Each test suite can have a cron-based schedule. Set a cron expression and timezone in the test suite settings and TestGen's internal scheduler will trigger runs automatically. See the scheduling documentation for details.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Generate and run tests" icon="play" href="/guides/generate-and-run-tests">
+    Step-by-step guide to generating tests from profiling results and running your first test suite.
+  </Card>
+  <Card title="Review results" icon="chart-bar" href="/guides/review-results">
+    How to interpret test results, drill into failures, and use quality scorecards.
+  </Card>
+  <Card title="Monitors and anomalies" icon="bell" href="/concepts/monitors-and-anomalies">
+    Learn about continuous monitoring for freshness, volume, and schema drift.
+  </Card>
+  <Card title="Scheduling" icon="clock" href="/operations/scheduling">
+    Configure cron schedules for automated test execution.
+  </Card>
+</CardGroup>

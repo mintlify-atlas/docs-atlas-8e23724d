@@ -1,0 +1,148 @@
+---
+title: "Export test results to DataOps Observability"
+description: "Learn how to push TestGen test results to DataOps Observability as dataset events, configure API credentials, and tune SSL and export volume settings."
+---
+
+DataOps Observability is a separate DataKitchen product that monitors data pipelines end-to-end — tracking runs, events, and data quality signals across your entire stack. TestGen integrates with Observability by exporting test results as dataset test-outcome events. Once exported, those results appear in Observability alongside pipeline run data, giving you a unified view of pipeline health and data quality without switching tools. This guide explains how to configure the integration, trigger an export, and tune the relevant settings.
+
+## How the integration works
+
+When you export from TestGen, it:
+
+1. Reads test results from the test suite that have not yet been exported.
+2. Packages them as `test-outcomes` events, each containing the test type, result status, threshold values, metric value, and column metadata.
+3. Posts the events in chunks to the DataOps Observability Events API.
+4. Marks the exported results in TestGen's database so they are not re-sent on the next export.
+
+Exported events appear in Observability as dataset-level events associated with the component key and name configured on the test suite or table group.
+
+## Required configuration
+
+Set the following environment variables before running an export. These can be placed in your Docker Compose file, `.env` file, or shell environment.
+
+| Variable | Description | Required |
+|---|---|---|
+| `OBSERVABILITY_API_URL` | Base URL of your DataOps Observability instance | Yes |
+| `OBSERVABILITY_API_KEY` | Service account authentication key from Observability | Yes |
+| `TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL` | Whether to verify the Observability SSL certificate (`yes` or `no`) | No (default: `yes`) |
+| `TG_OBSERVABILITY_EXPORT_MAX_QTY` | Maximum number of events exported per run | No (default: `5000`) |
+
+<Warning>
+  Keep `TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL` set to `yes` in production. Disabling SSL verification exposes your API key and event data to interception. Only set it to `no` in controlled environments with self-signed certificates.
+</Warning>
+
+You can also configure component mapping on the test suite to control how TestGen data appears in Observability:
+
+| Test suite field | Description |
+|---|---|
+| **Export to Observability** | Toggle to enable export for this suite |
+| **Component Key** | Overrides the default component key (set at the table group level) |
+| **Component Type** | Always `dataset` — controls the Observability event type |
+| **Component Name** | Overrides the default component name (set at the table group level) |
+
+## Trigger an export
+
+<Tabs>
+  <Tab title="UI">
+    <Steps>
+      <Step title="Navigate to Test Suites">
+        In the left sidebar, click **Data Quality Testing → Test Suites**.
+      </Step>
+
+      <Step title="Open the export dialog">
+        Click the **Export** action (kebab menu) on the test suite you want to export from.
+      </Step>
+
+      <Step title="Confirm and run">
+        The dialog shows the test suite name and the equivalent CLI command. Click **Start** to begin the export.
+
+        TestGen posts the pending test results to Observability in batches and displays the number of events exported when complete.
+      </Step>
+    </Steps>
+
+    <Note>
+      The export only sends results that have not been previously exported. Running the export again will only send new results from subsequent test runs.
+    </Note>
+  </Tab>
+
+  <Tab title="CLI">
+    Export test results for a specific test suite:
+
+    ```bash
+    testgen export-observability --project-key <project_key> --test-suite-key <test_suite_key>
+    ```
+
+    To find your project key and test suite key:
+
+    ```bash
+    testgen list-projects --display
+    testgen list-test-suites --display
+    ```
+
+    Example output:
+
+    ```text
+    export-observability for test suite: my-suite
+    42 events have been exported.
+
+    export-observability completed successfully.
+    ```
+
+    <Tip>
+      Run this command after every test run to keep Observability up to date. You can automate it by chaining it with `run-tests` in a CI/CD pipeline or scheduler.
+    </Tip>
+  </Tab>
+</Tabs>
+
+## What gets exported
+
+Each exported event contains:
+
+| Field | Source |
+|---|---|
+| **Test type** | TestGen test type (e.g., `Null_Check`, `Value_Min_Date`) |
+| **Status** | Result status in uppercase (`PASSED`, `FAILED`, `WARNING`) |
+| **Name / Description** | Human-readable test name and description |
+| **Min / Max threshold** | Pass/fail boundaries |
+| **Metric value** | The measured value that triggered the result |
+| **Metric name** | Unit of measure (e.g., `Percent`, `Count`) |
+| **Result message** | Detailed explanation of the outcome |
+| **Columns** | List of columns tested |
+| **Table** | The table that was tested |
+| **Start / End time** | When the test was executed |
+| **DQ dimension** | Quality dimension tag (e.g., Completeness, Validity) |
+
+Events are grouped by dataset component key and sent to the `/events/v1/test-outcomes` endpoint in the Observability API.
+
+## Tuning export behavior
+
+### SSL verification
+
+If your Observability instance uses a self-signed certificate, set:
+
+```bash
+TG_EXPORT_TO_OBSERVABILITY_VERIFY_SSL=no
+```
+
+### Export volume limit
+
+By default, a single export run sends up to 5,000 events. If you have more pending results, run the export multiple times — each run will pick up the next batch of unexported results. To change the batch size:
+
+```bash
+TG_OBSERVABILITY_EXPORT_MAX_QTY=2000
+```
+
+### Payload chunking
+
+TestGen automatically splits large payloads into chunks of up to 500 events per API request to stay within the Observability API's size limits. This happens transparently — you do not need to configure it.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Anomaly monitoring" icon="radar" href="/guides/anomaly-monitoring">
+    Set up continuous monitors that detect freshness, volume, and schema drift.
+  </Card>
+  <Card title="Observability integration reference" icon="book" href="/reference/observability-integration">
+    Full reference for the Observability integration, including event schema details.
+  </Card>
+</CardGroup>

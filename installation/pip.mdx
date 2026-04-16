@@ -1,0 +1,150 @@
+---
+title: "Install TestGen as a Python package with pip"
+description: "Install the dataops-testgen pip package, configure environment variables for your PostgreSQL instance, initialize the database, and start the TestGen UI."
+---
+
+As an alternative to the recommended [Docker Compose installation](/installation/docker), DataOps TestGen can be installed directly as a Python package from PyPI. This approach gives you more control over the runtime environment, but requires you to provision and manage a PostgreSQL database yourself — TestGen uses PostgreSQL to store all metadata, profiling results, test definitions, and test history.
+
+<Warning>
+  The pip installation requires Python 3.12 exactly and an accessible PostgreSQL 14 or later instance. If you do not have PostgreSQL available, use the [Docker installation](/installation/docker) instead, which bundles PostgreSQL automatically.
+</Warning>
+
+## Prerequisites
+
+| Software | Tested versions | Check version |
+|---|---|---|
+| Python | 3.12 | `python3 --version` |
+| PostgreSQL | 14.1, 15.8, 16.4 | `psql --version` |
+
+The PostgreSQL user you configure must have privileges to create roles, users, databases, and schemas so that TestGen can initialize its application database.
+
+## Install TestGen
+
+<Steps>
+  <Step title="Create a virtual environment">
+    Create and activate a Python virtual environment to isolate TestGen's dependencies from other Python packages on your machine.
+
+    <CodeGroup>
+
+    ```bash Linux and Mac
+    python3 -m venv venv
+    source venv/bin/activate
+    ```
+
+    ```powershell Windows
+    py -3.12 -m venv venv
+    venv\Scripts\activate
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Install the package">
+    With the virtual environment active, install TestGen from PyPI.
+
+    ```bash
+    pip install dataops-testgen
+    ```
+
+    Verify the installation by checking the CLI.
+
+    ```bash
+    testgen --help
+    ```
+  </Step>
+
+  <Step title="Configure environment variables">
+    Create a `local.env` file in your working directory with the following environment variables. Replace each `<value>` placeholder with an appropriate value for your environment.
+
+    ```bash
+    # Connection parameters for the PostgreSQL server
+    export TG_METADATA_DB_HOST=<postgres_hostname>
+    export TG_METADATA_DB_PORT=<postgres_port>
+
+    # Connection credentials for the PostgreSQL server
+    # This role must have privileges to create roles, users, database and schema
+    export TG_METADATA_DB_USER=<postgres_username>
+    export TG_METADATA_DB_PASSWORD=<postgres_password>
+
+    # Encryption settings for secrets stored in the application database
+    export TG_DECRYPT_PASSWORD=<encryption_password>
+    export TG_DECRYPT_SALT=<encryption_salt>
+
+    # Credentials for the default TestGen admin user
+    export TESTGEN_USERNAME=<username>
+    export TESTGEN_PASSWORD=<password>
+
+    # Arbitrary base64-encoded string for signing authentication tokens
+    export TG_JWT_HASHING_KEY=<base64_key>
+
+    # Path for storing application logs
+    export TESTGEN_LOG_FILE_PATH=<path_for_logs>
+    ```
+
+    <Tip>
+      `TG_DECRYPT_SALT` should be at least 16 ASCII characters. `TG_JWT_HASHING_KEY` can be any base64-encoded string — you can generate one with `openssl rand -base64 32`.
+    </Tip>
+
+    Source the file to apply the variables to your current shell session.
+
+    <CodeGroup>
+
+    ```bash Linux and Mac
+    source local.env
+    ```
+
+    ```powershell Windows
+    # See https://bennett4.medium.com/windows-alternative-to-source-env-for-setting-environment-variables-606be2a6d3e1
+    # for the Windows equivalent of sourcing an env file
+    ```
+
+    </CodeGroup>
+  </Step>
+
+  <Step title="Initialize the application database">
+    Make sure your PostgreSQL server is running and reachable at the host and port you configured. Then initialize the TestGen application database.
+
+    ```bash
+    testgen setup-system-db --yes
+    ```
+
+    This command creates the application database, schema, roles, and initial data structures in PostgreSQL.
+  </Step>
+
+  <Step title="Start the application">
+    Start the TestGen UI. It will open in your browser at [http://localhost:8501](http://localhost:8501).
+
+    ```bash
+    testgen run-app
+    ```
+
+    Log in with the `TESTGEN_USERNAME` and `TESTGEN_PASSWORD` values you set in the environment variables.
+  </Step>
+</Steps>
+
+## Optional: Load the demo dataset
+
+After installation, you can populate TestGen with a sample dataset to explore its features before connecting your own database.
+
+```bash
+testgen quick-start
+```
+
+In the TestGen UI, you will see data profiling results and test results generated from the sample data.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Connect your database" icon="database" href="/guides/connect-database">
+    Configure a connection to your PostgreSQL, Snowflake, Redshift, or other supported database.
+  </Card>
+  <Card title="Run profiling" icon="chart-bar" href="/guides/run-profiling">
+    Profile your tables to generate the statistics that power automated test generation.
+  </Card>
+  <Card title="Configuration reference" icon="gear" href="/operations/configuration">
+    Full reference for all environment variables supported by TestGen.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli-overview">
+    Explore all available testgen CLI commands for automation and pipeline integration.
+  </Card>
+</CardGroup>

@@ -1,0 +1,145 @@
+---
+title: "Set up and run anomaly monitors for your tables"
+description: "Configure monitor suites in TestGen, generate Freshness, Volume, and Schema Drift monitors, run them on a schedule, and review anomalies in the dashboard."
+---
+
+Anomaly monitoring gives you continuous visibility into how your tables are changing over time. Instead of writing static threshold tests, you configure monitor suites that track freshness (when tables were last updated), volume (how many rows each table has), and schema drift (added, dropped, or modified columns). TestGen runs these monitors on a schedule and surfaces anomalies on the Monitors Dashboard so you can quickly identify data pipeline problems. This guide explains how to set up monitors, generate them, run them, and review what they find.
+
+## What the Monitors Dashboard shows
+
+The **Monitors Dashboard** (left sidebar: **Data Quality Testing → Monitors**) gives a per-table view of recent anomaly activity within the monitor lookback window. For each table it shows:
+
+| Column | Description |
+|---|---|
+| **Table** | The table name |
+| **Freshness anomalies** | Number of times the table update interval was outside the expected range |
+| **Volume anomalies** | Number of times the row count deviated from the expected trend |
+| **Schema anomalies** | Number of detected column additions, drops, or type changes |
+| **Latest update** | Estimated time the table was last written to |
+| **Row count** | Most recent row count |
+
+You can filter the dashboard by table name or anomaly type, and sort by any column.
+
+Click any table row to open the **Table Monitoring Trends** dialog, which shows time-series charts for freshness, volume, and schema events.
+
+## Monitor types
+
+TestGen supports four monitor test types:
+
+| Test type | What it detects |
+|---|---|
+| `Freshness_Trend` | Whether tables are being updated on their expected schedule |
+| `Volume_Trend` | Whether row counts are within the expected range based on historical trends |
+| `Schema_Drift` | Whether columns have been added, dropped, or had their data types changed |
+| `Metric_Trend` | Whether a custom SQL metric is within its expected range (configurable per table) |
+
+## Set up a monitor suite
+
+A monitor suite is a special test suite with `is_monitor = true`. You can create one through the Connections setup wizard, the Table Groups wizard, or the Monitors Dashboard.
+
+<Tabs>
+  <Tab title="UI">
+    <Steps>
+      <Step title="Open monitor settings">
+        On the **Monitors Dashboard**, click **Edit Monitor Settings** (or **Configure Monitors** if no monitor suite exists yet for the selected table group).
+      </Step>
+
+      <Step title="Configure the monitor suite">
+        In the settings dialog, specify:
+
+        | Setting | Description |
+        |---|---|
+        | **Monitor lookback** | Number of recent runs to include in anomaly detection (default: 14) |
+        | **Predict sensitivity** | How aggressively the model flags anomalies: `low`, `medium`, or `high` |
+        | **Predict min lookback** | Minimum number of historical runs needed before predictions begin (default: 30) |
+        | **Exclude weekends** | Whether to exclude weekend days from freshness calculations |
+        | **Holiday codes** | Country codes whose public holidays should be excluded from scheduling |
+        | **Schedule** | Cron expression for automatic monitor runs |
+      </Step>
+
+      <Step title="Save">
+        Click **Save**. TestGen creates the monitor suite and automatically generates `Volume_Trend` and `Schema_Drift` monitors. `Freshness_Trend` monitors are generated after the first successful profiling run.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="CLI">
+    If you already have a monitor suite ID (from `list-test-suites`), you can regenerate its monitors:
+
+    ```bash
+    testgen run-monitor-generation --test-suite-id <monitor_suite_id>
+    ```
+
+    This generates `Freshness_Trend`, `Volume_Trend`, and `Schema_Drift` monitors for all tables in the associated table group.
+
+    To find the monitor suite ID:
+
+    ```bash
+    testgen list-test-suites --display
+    ```
+
+    Monitor suites are identified by the `is_monitor` flag in the output.
+  </Tab>
+</Tabs>
+
+## Run monitors
+
+<Tabs>
+  <Tab title="UI">
+    On the **Monitors Dashboard**, click **Run Monitors** to execute the monitor suite immediately. The run appears in the Test Runs list with the monitor suite name.
+
+    To view monitor run history, go to **Data Quality Testing → Test Runs** and filter by the monitor suite.
+  </Tab>
+
+  <Tab title="CLI">
+    Run a monitor suite:
+
+    ```bash
+    testgen run-monitors --test-suite-id <monitor_suite_id>
+    ```
+
+    <Note>
+      `run-monitors` is equivalent to `run-tests` for monitor suites. Use `run-monitors` for clarity when working with monitor-specific suites.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Review anomalies in the UI
+
+After running monitors, return to the **Monitors Dashboard** to see the updated counts. For each table with anomalies:
+
+1. Click the table row to open the **Table Monitoring Trends** dialog.
+2. Review the time-series chart for each monitor type.
+3. For **Schema Drift** events, click a data point on the chart to see the exact column-level changes (additions, drops, type changes) in a structured log.
+4. Use the **Extended History** toggle to see three times the normal lookback window.
+
+<Tip>
+  During the initial training period (while the model is collecting baseline data), results are marked as **Training** and will not generate anomalies. The minimum training period is controlled by **Predict min lookback**.
+</Tip>
+
+## Customize per-table monitors
+
+You can adjust freshness and volume monitor settings on a per-table basis without regenerating all monitors:
+
+1. On the Monitors Dashboard, click the **Edit** icon next to a table name.
+2. In the **Table Monitors** dialog, adjust the tolerance bounds, history calculation method, or add custom metric monitors.
+3. Click **Save**.
+
+Changes are locked so re-running generation does not overwrite them.
+
+## Set up scheduled monitoring
+
+To run monitors automatically on a recurring schedule, configure the cron expression in the monitor settings dialog. TestGen's built-in scheduler will then execute the monitor suite at the specified interval.
+
+For detailed scheduling instructions, see the [Scheduling operations](/operations/scheduling) guide.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Export to Observability" icon="arrow-up-right" href="/guides/export-to-observability">
+    Send monitor and test results to DataOps Observability for pipeline-level alerts.
+  </Card>
+  <Card title="Review results" icon="chart-line" href="/guides/review-results">
+    Understand the full test result detail view and quality scoring.
+  </Card>
+</CardGroup>

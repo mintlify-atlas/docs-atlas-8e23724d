@@ -1,0 +1,134 @@
+---
+title: "Table Groups and Profiling: How TestGen Learns Your Data"
+description: "Understand what a Table Group is, how profiling works, what column statistics it computes, and how hygiene issues are detected from profiling results."
+keywords: ["table group", "profiling", "data profiling", "column statistics", "hygiene issues", "anomalies", "profiling run"]
+---
+
+A **Table Group** defines the set of tables within a database schema that TestGen will profile and test together. It sits between a Connection and a Test Suite in the TestGen hierarchy — you create a table group to tell TestGen which tables to analyze, and then TestGen uses the results of profiling that group as the foundation for generating tests and detecting anomalies. Profiling is the act of scanning every column in those tables and computing a rich set of statistics that describe the data's shape, distribution, and quality.
+
+## What a table group is
+
+A table group is scoped to a single schema within a connection. You give it a name and configure which tables it includes. By default, a table group includes all tables in the schema, but you can narrow the scope using include and exclude masks, or by specifying an explicit list of tables.
+
+Table groups are the unit of profiling — when you run a profiling job, you run it against one table group. Each profiling run produces column-level statistics for every included column, and those statistics feed directly into test generation and hygiene issue detection.
+
+### Table group configuration
+
+| Setting | Description |
+|---|---|
+| **Name** | Human-readable identifier for the table group |
+| **Schema** | The database schema to profile |
+| **Table set** | Optional comma-separated list of specific table names to include |
+| **Include mask** | SQL `LIKE` pattern — only tables matching this pattern are included (e.g., `fact_%`) |
+| **Exclude mask** | SQL `LIKE` pattern — tables matching this pattern are excluded (e.g., `%_staging`) |
+| **ID column mask** | Pattern used to identify columns that are likely primary key or ID columns (default: `%id`) |
+| **SK column mask** | Pattern used to identify surrogate key columns (default: `%_sk`) |
+| **Use sampling** | Whether to profile using a statistical sample instead of the full table |
+| **Sample percent** | Percentage of rows to sample when sampling is enabled (default: 30%) |
+| **Sample minimum count** | Minimum row count before sampling applies (default: 100,000) |
+| **Profiling delay days** | Number of days to subtract from the current date when setting test thresholds — useful for tables with ingestion lag |
+
+<Info>
+Include and exclude masks use SQL `LIKE` syntax. For example, `fact_%` matches any table name starting with `fact_`, and `%_tmp` excludes any table ending with `_tmp`. If both masks are set, includes are applied first, then excludes.
+</Info>
+
+## What profiling does
+
+When you run profiling, TestGen queries your target database for schema metadata, then executes a series of analytical SQL queries against each selected column. The profiler computes column-level statistics that describe the data at the time of the run. These statistics are stored in TestGen's metadata database and are used to:
+
+- Auto-generate data quality test thresholds
+- Detect hygiene issues (data anomalies present in the profiled data)
+- Power the quality scorecard for the table group
+- Provide context when reviewing test failures
+
+Profiling does not modify your source data. TestGen only reads from your target database.
+
+### Column-level statistics produced by profiling
+
+For each column, profiling computes and stores:
+
+| Statistic | Description |
+|---|---|
+| **Data type** | The column's SQL data type |
+| **Record count** | Total number of rows in the table |
+| **Null count** | Number of null values in the column |
+| **Null rate** | Percentage of rows that are null |
+| **Distinct count** | Number of unique values |
+| **Distinct rate** | Unique values as a fraction of total rows |
+| **Min value** | Minimum value (for numeric and date columns) |
+| **Max value** | Maximum value (for numeric and date columns) |
+| **Mean** | Average value (for numeric columns) |
+| **Standard deviation** | Spread of numeric values |
+| **Sum** | Sum of numeric column values |
+| **Top patterns** | Most common value patterns (e.g., `NNN-NNN-NNNN` for phone numbers) |
+| **Top values** | Most frequently occurring values |
+| **Value distribution** | Histogram of value frequencies |
+| **Zero count** | Number of numeric values equal to zero |
+| **Negative count** | Number of numeric values below zero |
+
+<Tip>
+You can review column-level profiling results in detail through the **Profiling Runs** section of the UI. Drill into any table to see statistics column by column.
+</Tip>
+
+## Hygiene issues
+
+During a profiling run, TestGen also performs **hygiene analysis** — an automated scan for data quality problems that are directly visible in the profiled data. These are called hygiene issues. Unlike test failures (which compare new data against established thresholds), hygiene issues are detected from the data as it exists at the moment of profiling.
+
+Hygiene issues are categorized by likelihood:
+
+| Likelihood | Description |
+|---|---|
+| **Definite** | High-confidence anomaly — almost certainly a data quality problem (e.g., a column with values that exceed a numeric range) |
+| **Likely** | Strong signal of a problem, but some false positives are possible |
+| **Possible** | Weaker signal — worth reviewing, may be intentional |
+| **Potential PII** | Column appears to contain personally identifiable information |
+
+Each issue includes the affected table and column, a description of what was detected, and a severity indicator. You can review, dismiss, or accept hygiene issues within the UI.
+
+<Note>
+Hygiene issues are generated fresh with each profiling run. Dismissing an issue marks it as acknowledged for that run; if the same anomaly appears in a future run, it will be flagged again unless you mark it inactive.
+</Note>
+
+## Profiling run lifecycle
+
+1. **Triggered** — you start a profiling run from the UI or CLI, targeting a specific table group.
+2. **Schema discovery** — TestGen queries your database's information schema to identify all eligible tables and columns.
+3. **Column profiling** — analytical queries execute against each column in parallel (controlled by the connection's **max threads** setting).
+4. **Frequency analysis** — TestGen computes value distributions and top patterns.
+5. **Hygiene issue detection** — TestGen applies anomaly detection rules to the collected statistics.
+6. **Score computation** — a data quality score for the profiling run is computed and stored.
+7. **Completed** — results are available in the UI and become the basis for test generation.
+
+If a profiling run fails partway through, the run is marked with an error status. Partial results may still be available for columns that were successfully profiled before the error.
+
+<AccordionGroup>
+  <Accordion title="How long does profiling take?">
+    Profiling time depends on the number of tables and columns, row counts, and the query performance of your database. Sampling (configurable per table group) significantly reduces runtime for large tables. You can monitor progress in real time from the Profiling Runs page.
+  </Accordion>
+  <Accordion title="Can I profile only some tables in a schema?">
+    Yes. Use the **table set** field to list specific tables by name, or use include and exclude masks to pattern-match table names. You can also set both an include and an exclude mask — includes are applied first.
+  </Accordion>
+  <Accordion title="What happens to old profiling results?">
+    Each profiling run creates a new set of results. Previous runs are retained and can be browsed from the Profiling Runs list. Test generation always uses the most recent completed profiling run for a table group. You can delete old runs to free up storage.
+  </Accordion>
+  <Accordion title="What is profiling delay days?">
+    Some pipelines write data to a table hours or days after the source event date. The profiling delay setting subtracts a number of days from the current date when setting time-based test thresholds, preventing false failures for data that is legitimately late by design.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run profiling" icon="play" href="/guides/run-profiling">
+    Step-by-step guide to running your first profiling job.
+  </Card>
+  <Card title="Test suites and tests" icon="check-circle" href="/concepts/test-suites-and-tests">
+    Learn how profiling results feed into automatic test generation.
+  </Card>
+  <Card title="Review results" icon="chart-bar" href="/guides/review-results">
+    How to interpret profiling results, hygiene issues, and quality scores.
+  </Card>
+  <Card title="Projects and connections" icon="database" href="/concepts/projects-and-connections">
+    How table groups fit into the overall TestGen data model.
+  </Card>
+</CardGroup>

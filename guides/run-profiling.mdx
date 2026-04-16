@@ -1,0 +1,161 @@
+---
+title: "Profile your tables to discover data characteristics"
+description: "Learn how to run a profiling job in TestGen, what statistics it collects, and how to review results and hygiene issues in the UI or CLI."
+---
+
+Profiling is the first step in understanding your data. When you run a profiling job, TestGen connects to your database, scans every column in the tables matched by your table group, and computes statistical summaries — including value distributions, null rates, data type suggestions, and pattern frequencies. Alongside column statistics, TestGen automatically detects hygiene issues: data quality problems such as high null rates, dummy values, unexpected data types, and potential PII columns. This guide explains how to trigger a profiling run, what happens during it, and how to explore the results.
+
+## Trigger a profiling run
+
+<Tabs>
+  <Tab title="UI">
+    <Steps>
+      <Step title="Navigate to Profiling Runs">
+        In the left sidebar, click **Data Profiling → Profiling Runs**. The page lists all previous runs with their status, table count, column count, and data quality score.
+      </Step>
+
+      <Step title="Start a new run">
+        Click **Run Profiling**. If you have multiple table groups, select the one you want to profile from the dialog. Click **Start**.
+
+        TestGen launches the profiling job as a background process. The run appears in the list with a **Running** status and updates its progress automatically.
+      </Step>
+
+      <Step title="Wait for completion">
+        Profiling progresses through several phases:
+        - **Data characteristics** — discovers table and column metadata
+        - **Column profiling** — computes statistics for every column
+        - **Frequency analysis** — identifies the most frequent values and patterns
+        - **Hygiene issue detection** — flags data quality problems
+
+        Large tables or wide schemas may take several minutes. The status updates to **Complete** when finished, or **Error** if a problem occurred.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="CLI">
+    First, find the ID of the table group you want to profile:
+
+    ```bash
+    testgen list-table-groups --display
+    ```
+
+    Then run profiling, substituting your actual table group ID:
+
+    ```bash
+    testgen run-profile --table-group-id <table_group_id>
+    ```
+
+    The command prints progress to stdout and returns a message with the run ID on completion.
+
+    <Note>
+      The `--table-group-id` value is a UUID. Copy it from the output of `list-table-groups`.
+    </Note>
+  </Tab>
+</Tabs>
+
+## What TestGen profiles
+
+TestGen profiles all tables in the database schema that match your table group's **include mask** and do not match the **exclude mask**. If you specified an explicit **table set**, only those tables are profiled.
+
+For each column, TestGen computes:
+
+| Statistic | Description |
+|---|---|
+| Row count | Total number of rows in the table |
+| Value count | Number of non-null values |
+| Distinct values | Count of unique values |
+| Null values | Count and percentage of nulls |
+| Data type | Detected database type and suggested semantic type |
+| Min / Max / Avg | Numeric or date range statistics |
+| Frequent values | Top value frequencies |
+| Pattern analysis | Common string patterns |
+| Hygiene issues | Detected data quality problems |
+
+<Tip>
+  If your tables are very large, enable sampling in the table group configuration. Set **Use Sampling** to `Y` and configure **Sample Percent** and **Sample Minimum Count** to control the sample size.
+</Tip>
+
+## View profiling results
+
+<Tabs>
+  <Tab title="UI">
+    From the Profiling Runs list, click any completed run to open the **Profiling Results** page. You can filter results by table or column name and sort by data type, semantic type, or hygiene issue count.
+
+    Select a row to see a detailed panel for that column, including its statistics, frequent values, and any hygiene issues detected.
+
+    To export results, click **Export** and choose to download all results, filtered results, or selected rows as an Excel file.
+  </Tab>
+
+  <Tab title="CLI">
+    List all profiling runs for a table group:
+
+    ```bash
+    testgen list-profiles --table-group-id <table_group_id> --display
+    ```
+
+    Fetch details for a specific run:
+
+    ```bash
+    testgen get-profile --profile-run-id <profile_run_id> --display
+    ```
+
+    To filter by a single table:
+
+    ```bash
+    testgen get-profile --profile-run-id <profile_run_id> --table-name orders
+    ```
+
+    Both commands write a CSV file (`list_profiles.csv` or `get_profile.csv`) in addition to optional terminal output.
+  </Tab>
+</Tabs>
+
+## Review hygiene issues
+
+Hygiene issues are data quality problems detected automatically during profiling. Each issue has a **likelihood** rating:
+
+| Likelihood | Meaning |
+|---|---|
+| **Definite** | High confidence the issue represents a real data quality problem |
+| **Likely** | Strong indication of an issue, but some ambiguity |
+| **Possible** | Potential issue that warrants investigation |
+| **Potential PII** | Column may contain personally identifiable information |
+
+<Tabs>
+  <Tab title="UI">
+    From a completed profiling run, click the **Hygiene Issues** tab (accessible via the breadcrumb on the Profiling Results page). You can filter issues by likelihood, table, column, issue type, and disposition action.
+
+    Select a row to see the full issue detail, including a description, the specific problematic values or patterns, and a suggested remediation action.
+
+    You can take disposition actions on issues:
+    - **Confirm** — mark the issue as a known problem
+    - **Dismiss** — mark the issue as not relevant for this run
+    - **Mute** — deactivate the issue type for future runs on this column
+  </Tab>
+
+  <Tab title="CLI">
+    Fetch hygiene issues (anomalies) found during a profiling run:
+
+    ```bash
+    testgen get-profile-anomalies --profile-run-id <profile_run_id> --display
+    ```
+
+    Filter to a specific table:
+
+    ```bash
+    testgen get-profile-anomalies --profile-run-id <profile_run_id> --table-name customers
+    ```
+
+    Output is also written to `get_profile_anomalies.csv`.
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Generate and run tests" icon="flask-round" href="/guides/generate-and-run-tests">
+    Use profiling results to auto-generate data quality tests and run them.
+  </Card>
+  <Card title="Review test results" icon="chart-line" href="/guides/review-results">
+    Understand pass/fail outcomes and quality scores after running tests.
+  </Card>
+</CardGroup>

@@ -1,0 +1,187 @@
+---
+title: "Supported Databases: Connection and Flavor Reference"
+description: "All nine database engines supported by TestGen—PostgreSQL, Snowflake, Databricks, BigQuery, and more—with connection fields and SQL flavor settings."
+---
+
+TestGen connects to your target databases to run profiling and tests. The platform supports nine database engines through dedicated SQLAlchemy-based drivers. Each engine has its own connection parameters and, in some cases, authentication options beyond username and password.
+
+## Supported databases
+
+| Database | Driver / package | SQL flavor code |
+|---|---|---|
+| PostgreSQL | `psycopg2-binary` | `postgresql` |
+| Amazon Redshift | `psycopg2-binary` (Redshift dialect) | `redshift` |
+| Snowflake | `snowflake-sqlalchemy` | `snowflake` |
+| Microsoft SQL Server | `pyodbc` | `mssql` |
+| Databricks | `databricks-sql-connector`, `databricks-sdk` | `databricks` |
+| Google BigQuery | `sqlalchemy-bigquery` | `bigquery` |
+| Trino | `trino` | `trino` |
+| SAP HANA | `hdbcli`, `sqlalchemy-hana` | `sap_hana` |
+| Oracle | `oracledb` | `oracle` |
+
+All drivers are included in the `dataops-testgen` package. No additional installation is required.
+
+---
+
+## SQL flavor configuration
+
+The `PROJECT_SQL_FLAVOR` environment variable sets the SQL dialect for the auto-generated project created during `setup-system-db`. It does not affect connections you add manually through the UI or CLI.
+
+<ParamField path="PROJECT_SQL_FLAVOR" type="string" default="postgresql">
+  SQL flavor for the auto-generated project. Supported values: `postgresql`, `redshift`, `snowflake`, `mssql`.
+</ParamField>
+
+<Note>
+  `databricks`, `bigquery`, `trino`, `sap_hana`, and `oracle` connections are supported but must be configured through the TestGen UI or CLI rather than the `PROJECT_SQL_FLAVOR` environment variable.
+</Note>
+
+---
+
+## Connection parameters
+
+Every connection in TestGen accepts a common set of fields. The exact fields required vary by database engine.
+
+### Common fields
+
+<ParamField path="host" type="string" required>
+  Hostname or IP address of the database server.
+</ParamField>
+
+<ParamField path="port" type="string" required>
+  Port number the database listens on.
+</ParamField>
+
+<ParamField path="username" type="string" required>
+  Username to authenticate with.
+</ParamField>
+
+<ParamField path="password" type="string">
+  Password for the user. Stored encrypted in the TestGen metadata database.
+</ParamField>
+
+<ParamField path="database" type="string" required>
+  Name of the database (or catalog) to connect to.
+</ParamField>
+
+<ParamField path="schema" type="string" required>
+  Schema within the database to profile and test.
+</ParamField>
+
+<ParamField path="connect_by_url" type="boolean" default="false">
+  When enabled, provide a full SQLAlchemy connection URL instead of individual fields.
+</ParamField>
+
+<ParamField path="connect_by_key" type="boolean" default="false">
+  When enabled, use private-key or OAuth authentication instead of a password. Supported for Snowflake (key-pair) and Databricks (OAuth service principal).
+</ParamField>
+
+---
+
+## Per-database notes
+
+### PostgreSQL
+
+Standard connection. Defaults to port `5432`. No special configuration required beyond the common fields.
+
+### Amazon Redshift
+
+Uses the PostgreSQL driver with Redshift dialect. The `PROJECT_SQL_FLAVOR` code is `redshift`.
+
+For Redshift Spectrum connections (querying external tables in S3), a separate `redshift_spectrum` flavor code is available.
+
+### Snowflake
+
+<ParamField path="host" type="string" required>
+  Snowflake account identifier, for example `myaccount.us-east-1`. The `.snowflakecomputing.com` suffix is added automatically if omitted.
+</ParamField>
+
+<ParamField path="warehouse" type="string">
+  Snowflake virtual warehouse to use for queries.
+</ParamField>
+
+Snowflake supports key-pair authentication. Set `connect_by_key=true` and provide the PEM-encoded private key and optional passphrase.
+
+Two session-level settings are applied automatically on every Snowflake connection:
+- `ALTER SESSION SET MULTI_STATEMENT_COUNT = 0`
+- `ALTER SESSION SET WEEK_START = 7`
+
+### Microsoft SQL Server
+
+Uses `pyodbc`. Requires an ODBC driver to be installed on the system running TestGen (typically `ODBC Driver 17 for SQL Server` or later).
+
+<ParamField path="TG_TARGET_DB_TRUST_SERVER_CERTIFICATE" type="string" default="no">
+  Set to `yes` to disable SSL certificate validation for MSSQL (and other supported flavors). Useful for self-signed certificates in development environments.
+</ParamField>
+
+### Databricks
+
+<ParamField path="host" type="string" required>
+  Databricks workspace hostname, for example `adb-1234567890.1.azuredatabricks.net`.
+</ParamField>
+
+<ParamField path="http_path" type="string" required>
+  HTTP path to the SQL warehouse or cluster, for example `/sql/1.0/warehouses/abc123`.
+</ParamField>
+
+<ParamField path="database" type="string" required>
+  Unity Catalog catalog name.
+</ParamField>
+
+Databricks supports two authentication methods:
+- **Personal access token** (default): provide the token as the password.
+- **OAuth service principal** (`connect_by_key=true`): provide the client ID as the username and the client secret as the password. TestGen calls the Databricks SDK to obtain OAuth credentials.
+
+### Google BigQuery
+
+<ParamField path="service_account_key" type="object">
+  JSON service account key for authentication. Paste the parsed JSON object directly.
+</ParamField>
+
+BigQuery does not use a traditional host/port/password combination. Authentication is through a service account key file.
+
+### Trino
+
+Standard Trino connection. Provide the coordinator host and port (default `8080`). Uses the `trino` SQLAlchemy dialect.
+
+### SAP HANA
+
+Uses `hdbcli` for the driver and `sqlalchemy-hana` for the SQLAlchemy dialect. Default port is `30015`.
+
+### Oracle
+
+Uses the `oracledb` driver in thin mode (no Oracle client installation required). Default port is `1521`.
+
+---
+
+## Connection performance settings
+
+These environment variables control how TestGen queries your target databases. They apply to the auto-generated project connection; for manually configured connections adjust them in the project settings.
+
+<ParamField path="PROJECT_CONNECTION_MAX_THREADS" type="number" default="4">
+  Maximum number of concurrent queries sent to the target database when fetching profiling or test data.
+</ParamField>
+
+<ParamField path="PROJECT_CONNECTION_MAX_QUERY_CHAR" type="number" default="5000">
+  Controls how many test definitions are batched into a single SQL query. Increase for better performance on capable databases, decrease to isolate failures more precisely. Accepted range: 500–14 000.
+</ParamField>
+
+---
+
+## SSL and certificate settings
+
+<ParamField path="TG_TARGET_DB_TRUST_SERVER_CERTIFICATE" type="string" default="no">
+  When set to `yes`, TestGen configures the SQLAlchemy connection to trust the database server certificate without validation. Applies to SQL flavors that support this option, including MSSQL. Do not use in production environments where certificate validation is required.
+</ParamField>
+
+---
+
+## Related pages
+
+<CardGroup cols={2}>
+  <Card title="Connect a database" icon="database" href="/guides/connect-database">
+    Step-by-step guide to adding a new database connection in TestGen.
+  </Card>
+  <Card title="Configuration reference" icon="gear" href="/operations/configuration">
+    All environment variables for the TestGen application.
+  </Card>
+</CardGroup>

@@ -1,0 +1,118 @@
+{
+  "projectType": "saas",
+  "projectName": "DataOps TestGen",
+  "projectDescription": "An open-source data quality platform that profiles databases, auto-generates validation tests, monitors data health continuously, and surfaces anomalies through a web UI and CLI.",
+  "theme": "aspen",
+  "primaryColor": "#a5ce4f",
+  "lightColor": "#259e4c",
+  "darkColor": "#eaf4df",
+  "navigation": {
+    "tabs": [
+      {
+        "tab": "Documentation",
+        "groups": [
+          {
+            "group": "Get Started",
+            "pages": [
+              "introduction",
+              "quickstart",
+              "installation/docker",
+              "installation/pip"
+            ]
+          },
+          {
+            "group": "Core Concepts",
+            "pages": [
+              "concepts/projects-and-connections",
+              "concepts/table-groups-and-profiling",
+              "concepts/test-suites-and-tests",
+              "concepts/monitors-and-anomalies"
+            ]
+          },
+          {
+            "group": "Using TestGen",
+            "pages": [
+              "guides/connect-database",
+              "guides/run-profiling",
+              "guides/generate-and-run-tests",
+              "guides/review-results",
+              "guides/anomaly-monitoring",
+              "guides/export-to-observability"
+            ]
+          },
+          {
+            "group": "Configuration & Operations",
+            "pages": [
+              "operations/configuration",
+              "operations/scheduling",
+              "operations/notifications",
+              "operations/upgrade"
+            ]
+          }
+        ]
+      },
+      {
+        "tab": "Reference",
+        "groups": [
+          {
+            "group": "CLI Reference",
+            "pages": [
+              "reference/cli-overview",
+              "reference/cli-profiling",
+              "reference/cli-testing",
+              "reference/cli-data"
+            ]
+          },
+          {
+            "group": "MCP Server",
+            "pages": [
+              "reference/mcp-overview",
+              "reference/mcp-tools"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "reference/database-support",
+              "reference/observability-integration"
+            ]
+          }
+        ]
+      }
+    ]
+  },
+  "keyFeatures": [
+    "Automated data profiling that scans table groups and generates column-level statistics",
+    "AI-assisted test generation producing hundreds of data quality checks from profiling results",
+    "Continuous anomaly monitoring tracking freshness, volume, schema drift, and custom metrics",
+    "Web-based dashboard for reviewing profiling, test results, and hygiene issues",
+    "CLI and MCP server for automation, scripting, and AI-agent integration",
+    "Multi-database support: PostgreSQL, Snowflake, Redshift, MSSQL, Databricks, BigQuery, Trino, SAP HANA, Oracle",
+    "Docker Compose deployment via dk-installer for easy self-hosted setup",
+    "Export to DataOps Observability for broader pipeline health monitoring",
+    "Built-in scheduler for automated recurring profiling and test runs",
+    "Score cards and quality dashboards with drill-down into failed tests"
+  ],
+  "publicApiSurface": [
+    "testgen run-profile --table-group-id <id>",
+    "testgen run-test-generation --test-suite-id <id>",
+    "testgen run-tests --test-suite-id <id>",
+    "testgen run-monitors --test-suite-id <id>",
+    "testgen setup-system-db",
+    "testgen upgrade-system-version",
+    "testgen run-app",
+    "testgen list-projects",
+    "testgen list-connections",
+    "testgen list-table-groups",
+    "testgen list-test-suites",
+    "testgen list-profiles",
+    "testgen get-profile --profile-run-id <id>",
+    "testgen get-profile-anomalies --profile-run-id <id>",
+    "testgen list-tests",
+    "testgen list-test-runs",
+    "testgen get-test-results --test-run-id <id>",
+    "testgen export-observability",
+    "testgen mcp-token --username <user> --password <pw>",
+    "testgen quick-start"
+  ]
+}

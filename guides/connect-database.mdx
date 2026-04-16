@@ -1,0 +1,146 @@
+---
+title: "Connect a database and configure table groups"
+description: "Learn how to add a database connection in TestGen, verify it, and create a table group that defines which tables to profile and test."
+---
+
+Before TestGen can profile your data or run quality tests, you need to tell it where your data lives. This guide walks you through creating a connection to your database, choosing the right SQL flavor, verifying the connection works, and setting up a table group that scopes which tables TestGen will examine.
+
+## Supported database flavors
+
+TestGen supports the following databases out of the box:
+
+| Label | Flavor code |
+|---|---|
+| Amazon Redshift | `redshift` |
+| Amazon Redshift Spectrum | `redshift_spectrum` |
+| Azure SQL Database | `azure_mssql` |
+| Azure Synapse Analytics | `synapse_mssql` |
+| Databricks | `databricks` |
+| Google BigQuery | `bigquery` |
+| Microsoft SQL Server | `mssql` |
+| Oracle | `oracle` |
+| PostgreSQL | `postgresql` |
+| SAP HANA | `sap_hana` |
+| Snowflake | `snowflake` |
+
+## Connect your database
+
+<Tabs>
+  <Tab title="UI">
+    <Steps>
+      <Step title="Open the Connections page">
+        In the left sidebar, go to **Data Configuration → Connection**. If no connection exists yet, the form opens automatically pre-filled with PostgreSQL defaults.
+      </Step>
+
+      <Step title="Choose your SQL flavor">
+        Select your database type from the **SQL Flavor** dropdown. The form adjusts to show only the fields that apply to your chosen database.
+      </Step>
+
+      <Step title="Fill in connection details">
+        Complete the required fields for your database:
+
+        | Field | Description |
+        |---|---|
+        | **Host** | Hostname or IP address of the database server |
+        | **Port** | Network port (e.g., `5432` for PostgreSQL, `1433` for SQL Server) |
+        | **Database** | Name of the target database |
+        | **Schema** | Default schema TestGen will query |
+        | **User** | Database username |
+        | **Password** | Database password |
+
+        <Note>
+          For Snowflake and Databricks, additional fields such as **HTTP Path** or **Account** may appear depending on the flavor.
+        </Note>
+
+        For key-based authentication (Snowflake), enable **Connect by Key** and provide your private key and optional passphrase instead of a password.
+      </Step>
+
+      <Step title="Test the connection">
+        Click **Test Connection**. TestGen executes a lightweight query against your database and displays a success or failure message with details. Resolve any errors before saving.
+
+        <Warning>
+          Do not skip testing. A saved connection with incorrect credentials will silently fail when you run profiling or tests.
+        </Warning>
+      </Step>
+
+      <Step title="Save the connection">
+        Click **Save**. TestGen stores your credentials encrypted using the `TG_DECRYPT_SALT` and `TG_DECRYPT_PASSWORD` environment variables.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="CLI">
+    To list all existing connections from the command line, run:
+
+    ```bash
+    testgen list-connections
+    ```
+
+    This outputs a CSV file (`list_connections.csv`) and, with the `--display` flag, prints the table to the terminal:
+
+    ```bash
+    testgen list-connections --display
+    ```
+
+    <Note>
+      The CLI does not support creating or editing connections directly. Use the UI for initial setup.
+    </Note>
+  </Tab>
+</Tabs>
+
+## Create a table group
+
+A table group defines the schema and set of tables that TestGen profiles and tests. Every profiling run and test suite is associated with a specific table group.
+
+<Tabs>
+  <Tab title="UI">
+    After saving a connection, click **Setup Table Group** on the Connections page, or navigate to **Data Configuration → Table Groups** and click **Add Table Group**.
+
+    <Steps>
+      <Step title="Name the table group">
+        Enter a unique **Table Group Name**. This name appears throughout the UI when you filter profiling runs and test suites.
+      </Step>
+
+      <Step title="Configure table selection">
+        Specify which tables to include or exclude:
+
+        | Field | Description | Default |
+        |---|---|---|
+        | **Include Mask** | SQL `LIKE` pattern for tables to include | `%` (all tables) |
+        | **Exclude Mask** | SQL `LIKE` pattern for tables to exclude | `tmp%` |
+        | **Table Set** | Explicit comma-separated list of table names | (empty) |
+
+        If **Table Set** is provided, the include and exclude masks are ignored.
+      </Step>
+
+      <Step title="Verify table access">
+        Click **Test Table Group** to preview which tables TestGen can see. This step connects to your database and lists matching tables. Resolve any access or schema errors before proceeding.
+      </Step>
+
+      <Step title="Save and optionally kick off profiling">
+        Click **Save**. You can optionally check **Run Profiling** to immediately start a profiling run on the new table group. You can also set up a standard test suite and a monitor suite from the same wizard.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="CLI">
+    To list existing table groups and get their IDs:
+
+    ```bash
+    testgen list-table-groups --display
+    ```
+
+    Use the `table_group_id` values shown in the output when running profiling or generating tests via the CLI.
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run profiling" icon="chart-bar" href="/guides/run-profiling">
+    Start your first profiling run to discover column statistics and hygiene issues.
+  </Card>
+  <Card title="Generate and run tests" icon="flask-round" href="/guides/generate-and-run-tests">
+    Generate data quality tests from profiling results and run them against your tables.
+  </Card>
+</CardGroup>

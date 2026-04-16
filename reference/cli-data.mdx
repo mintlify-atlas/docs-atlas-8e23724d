@@ -1,0 +1,280 @@
+---
+title: "TestGen CLI: Data & System Commands Reference"
+description: "Reference for testgen system and export commands: setup-system-db, upgrade-system-version, run-app, export-observability, mcp-token, and more."
+---
+
+Data and system commands cover everything outside the profiling and testing workflows: initializing and upgrading the PostgreSQL backend, launching application modules, exporting results, and inspecting top-level resources like projects and connections.
+
+---
+
+## setup-system-db
+
+Initializes the TestGen PostgreSQL system database. By default the command prompts for confirmation before making any changes. Pass `--yes` to skip the prompt in automated environments.
+
+```bash
+testgen setup-system-db [--delete-db] [--yes]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--delete-db` | — | flag | No | `false` | Drop and recreate the existing database. **All data will be lost.** |
+| `--yes` | `-y` | flag | No | `false` | Skip the confirmation prompt and proceed automatically. |
+
+### Examples
+
+```bash
+# Interactive setup (prompts for confirmation)
+testgen setup-system-db
+
+# Non-interactive setup for CI/CD
+testgen setup-system-db --yes
+
+# Delete and recreate, skipping confirmation
+testgen setup-system-db --delete-db --yes
+```
+
+<Warning>
+  Using `--delete-db` permanently destroys all existing TestGen data in the target database. Use with caution in production environments.
+</Warning>
+
+---
+
+## upgrade-system-version
+
+Upgrades the TestGen database schema and services to match the currently installed package version. If no upgrade is needed, the command exits cleanly with a message.
+
+```bash
+testgen upgrade-system-version
+```
+
+This command takes no options.
+
+<Note>
+  TestGen runs this upgrade automatically before executing any command if it detects that the schema is out of date. You can also trigger it manually before deploying a new container image.
+</Note>
+
+### Example
+
+```bash
+testgen upgrade-system-version
+```
+
+---
+
+## run-app
+
+Starts one or more TestGen application modules. When you pass `all` (the default), each module is launched as a child process and the parent process monitors them, terminating all children if any one exits unexpectedly.
+
+```bash
+testgen run-app [all | ui | scheduler | mcp]
+```
+
+### Arguments
+
+| Argument | Choices | Default | Description |
+|----------|---------|---------|-------------|
+| `module` | `all`, `ui`, `scheduler`, `mcp` | `all` | The module to start. `mcp` is only available when the MCP feature is enabled. |
+
+### Examples
+
+```bash
+# Start all modules
+testgen run-app
+
+# Start the UI only
+testgen run-app ui
+
+# Start the scheduler only
+testgen run-app scheduler
+
+# Start the MCP server only
+testgen run-app mcp
+```
+
+<Info>
+  The `mcp` module is conditionally available based on the `MCP_ENABLED` configuration setting. It will not appear in the choices list if MCP is disabled.
+</Info>
+
+---
+
+## quick-start
+
+Sets up a complete demo environment with sample target database tables, profiling data, test generation, test runs, and monitor runs. Designed for exploration and onboarding, not production use.
+
+```bash
+testgen quick-start [--observability-api-url <url>] [--observability-api-key <key>]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--observability-api-url` | — | string | No | `""` | Observability API URL. Enables `export-observability` after quick-start completes. |
+| `--observability-api-key` | — | string | No | `""` | Observability API key paired with the URL above. |
+
+### Examples
+
+```bash
+# Basic demo with no Observability integration
+testgen quick-start
+
+# Demo with Observability export enabled
+testgen quick-start \
+  --observability-api-url https://your-obs-instance/api \
+  --observability-api-key your_api_key
+```
+
+<Warning>
+  `quick-start` deletes and recreates the demo target database on every run. Do not point it at a database containing real data.
+</Warning>
+
+---
+
+## mcp-token
+
+Generates a JWT token for authenticating with the TestGen MCP server. The password field uses hidden input — it will not be echoed to the terminal.
+
+```bash
+testgen mcp-token --username <username> --password <password>
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--username` | — | string | Yes | — | TestGen username. |
+| `--password` | — | string (hidden) | Yes | — | TestGen password. Not echoed to the terminal. |
+
+### Example
+
+```bash
+testgen mcp-token --username admin --password secret
+```
+
+The command prints the JWT token, the MCP server URL, and an example `claude mcp add` invocation.
+
+<Tip>
+  Copy the printed `claude mcp add` command directly into your terminal to connect Claude Code to the TestGen MCP server without manually constructing the header.
+</Tip>
+
+---
+
+## export-observability
+
+Sends test results from a test suite to DataOps Observability. Configure the Observability endpoint via environment variables or the `quick-start` command before using this command.
+
+```bash
+testgen export-observability [--project-key <key>] [--test-suite-key <key>]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--project-key` | `-pk` | string | No | project default | Project key. Use a key from `list-projects`. |
+| `--test-suite-key` | `-ts` | string | No | suite default | Key of the test suite to export. Use a key from `list-test-suites`. |
+
+### Example
+
+```bash
+testgen export-observability --project-key my_project --test-suite-key my_suite
+```
+
+---
+
+## export-test-metadata
+
+Exports current test metadata records to YAML files in the specified directory. Useful for version-controlling your test definitions or migrating them between environments.
+
+```bash
+testgen export-test-metadata [--path <directory>]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--path` | — | string | No | `testgen/template` | Path to the output directory. Must be an existing directory. |
+
+### Examples
+
+```bash
+# Export to the default template directory
+testgen export-test-metadata
+
+# Export to a custom directory
+testgen export-test-metadata --path ./my_exports
+```
+
+---
+
+## list-projects
+
+Lists all projects in the TestGen tenant. Results are saved to `list_projects.csv`.
+
+```bash
+testgen list-projects [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-projects --display
+```
+
+---
+
+## list-connections
+
+Lists all database connections registered in the TestGen tenant. Results are saved to `list_connections.csv`.
+
+```bash
+testgen list-connections [--display]
+```
+
+### Options
+
+| Flag | Short | Type | Required | Default | Description |
+|------|-------|------|----------|---------|-------------|
+| `--display` | `-d` | flag | No | `false` | Print results to the terminal in addition to writing the CSV. |
+
+### Example
+
+```bash
+testgen list-connections --display
+```
+
+---
+
+## ui plugins
+
+Lists all installed UI plugins, showing the package name and installed version for each.
+
+```bash
+testgen ui plugins
+```
+
+This command takes no options.
+
+### Example
+
+```bash
+testgen ui plugins
+```
+
+Output:
+
+```text
+3 plugins installed
+ + my-plugin                       version: 1.0.0
+ + another-plugin                  version: 2.3.1
+ + custom-charts                   version: 0.5.0
+```

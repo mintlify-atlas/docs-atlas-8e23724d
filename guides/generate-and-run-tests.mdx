@@ -1,0 +1,183 @@
+---
+title: "Generate and run data quality tests on your tables"
+description: "Learn how to auto-generate data quality test definitions from profiling results and run them against your tables using the TestGen UI or CLI."
+---
+
+Once you have profiled your data, TestGen can use those statistics to automatically create a set of data quality tests tailored to each column in your tables. This process — called test generation — produces individual test definitions that check for things like null rates within expected bounds, values within observed ranges, and column-level pattern conformance. After generating tests, you run them on demand or on a schedule, and review the pass/fail outcomes. This guide walks through both steps.
+
+## Step 1: Generate tests
+
+<Tabs>
+  <Tab title="UI">
+    <Steps>
+      <Step title="Navigate to Test Suites">
+        In the left sidebar, click **Data Quality Testing → Test Suites**. The page lists all test suites associated with your project. Each test suite is tied to a specific table group.
+      </Step>
+
+      <Step title="Select a test suite">
+        Click the test suite you want to generate tests for. If you do not have a test suite yet, click **Add Test Suite**, enter a name, select a table group, and save.
+      </Step>
+
+      <Step title="Generate tests">
+        Click **Generate Tests** on the test suite row. TestGen reads the most recent profiling results for the associated table group and creates one or more test definitions per column, based on the **Standard** generation set.
+
+        A confirmation dialog shows the CLI equivalent command for reference.
+      </Step>
+
+      <Step title="Review generated test definitions">
+        After generation completes, navigate to **Data Quality Testing → Test Suites** and open the test suite. The generated test definitions appear with their target table, column, test type, and threshold values derived from profiling statistics.
+
+        <Tip>
+          To lock a test definition and prevent it from being overwritten on the next generation run, open the definition and enable **Lock Refresh**.
+        </Tip>
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="CLI">
+    First, find your test suite ID:
+
+    ```bash
+    testgen list-test-suites --display
+    ```
+
+    Then generate tests:
+
+    ```bash
+    testgen run-test-generation --test-suite-id <test_suite_id>
+    ```
+
+    You can also specify the generation set (defaults to `Standard`):
+
+    ```bash
+    testgen run-test-generation --test-suite-id <test_suite_id> --generation-set Standard
+    ```
+
+    <Note>
+      The `--table-group-id` and `--test-suite-key` options are accepted for backward compatibility, but `--test-suite-id` is preferred.
+    </Note>
+  </Tab>
+</Tabs>
+
+## What gets generated
+
+TestGen creates test definitions at the column level. Each definition specifies:
+
+| Field | Description |
+|---|---|
+| **Test type** | The kind of check to perform (e.g., null rate, value range, pattern match) |
+| **Table / Column** | The specific column being tested |
+| **Threshold value** | The pass/fail boundary derived from profiling statistics |
+| **Severity** | The impact level if the test fails (Failed, Warning, or Log) |
+| **Active** | Whether the test is enabled for the next run |
+
+<Note>
+  Test generation is non-destructive for locked definitions. If you have manually edited a test definition and set **Lock Refresh** to `Y`, re-running generation will not overwrite it.
+</Note>
+
+## Step 2: Run the test suite
+
+<Tabs>
+  <Tab title="UI">
+    <Steps>
+      <Step title="Navigate to Test Suites or Test Runs">
+        From **Data Quality Testing → Test Suites**, find the test suite you want to run, then click **Run Tests**.
+
+        Alternatively, go to **Data Quality Testing → Test Runs** and click **Run Tests** there.
+      </Step>
+
+      <Step title="Confirm and start">
+        A dialog shows the test suite name and the CLI equivalent command. Click **Start** to begin the test run.
+
+        TestGen executes all active test definitions in the suite against your database. The run appears in the Test Runs list with a **Running** status.
+      </Step>
+
+      <Step title="Wait for completion">
+        The run completes in seconds to minutes depending on the number of tests and table sizes. The status changes to **Complete** or **Error** when finished.
+      </Step>
+    </Steps>
+  </Tab>
+
+  <Tab title="CLI">
+    Run all tests in a test suite:
+
+    ```bash
+    testgen run-tests --test-suite-id <test_suite_id>
+    ```
+
+    To find available test suite IDs:
+
+    ```bash
+    testgen list-test-suites --display
+    ```
+
+    <Warning>
+      The `--project-key` and `--test-suite-key` options are deprecated. Use `--test-suite-id` instead.
+    </Warning>
+  </Tab>
+</Tabs>
+
+## View test results
+
+After a run completes, you can review results in the UI or export them via the CLI.
+
+<Tabs>
+  <Tab title="UI">
+    From **Data Quality Testing → Test Runs**, click any completed run to open the **Test Results** page. By default the view shows Failed and Warning results. You can filter by status, table, column, test type, or disposition action.
+
+    See the [Review results guide](/guides/review-results) for a full walkthrough of the results page.
+  </Tab>
+
+  <Tab title="CLI">
+    List all test runs for a test suite:
+
+    ```bash
+    testgen list-test-runs --display
+    ```
+
+    Fetch results for a specific run:
+
+    ```bash
+    testgen get-test-results --test-run-id <test_run_id> --display
+    ```
+
+    To see only failures:
+
+    ```bash
+    testgen get-test-results --test-run-id <test_run_id> --fails-only --display
+    ```
+
+    Results are also written to `get_test_results.csv`.
+  </Tab>
+</Tabs>
+
+## Iterating after data updates
+
+After your source data changes — for example, after a daily ETL load — re-run the test suite to check whether the data still meets the expected thresholds. If your data distribution has shifted, re-run test generation first to update the thresholds, then run the tests.
+
+<CodeGroup>
+
+```bash Re-generate tests
+testgen run-test-generation --test-suite-id <test_suite_id>
+```
+
+```bash Re-run tests
+testgen run-tests --test-suite-id <test_suite_id>
+```
+
+</CodeGroup>
+
+<Tip>
+  To automate test execution on a schedule, see the [Scheduling operations](/operations/scheduling) guide.
+</Tip>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Review results" icon="chart-line" href="/guides/review-results">
+    Understand pass/fail outcomes, quality scores, and how to triage failures.
+  </Card>
+  <Card title="Anomaly monitoring" icon="radar" href="/guides/anomaly-monitoring">
+    Set up continuous monitors that detect freshness, volume, and schema drift.
+  </Card>
+</CardGroup>

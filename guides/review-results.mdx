@@ -1,0 +1,145 @@
+---
+title: "Review test results and understand quality scores"
+description: "Learn how to navigate test results in TestGen, triage failures, apply disposition actions, export results to CSV, and interpret data quality scores."
+---
+
+After running a test suite, TestGen produces a detailed record of every test that was executed, its outcome, and a numeric quality score for the run. This guide explains how to navigate the results UI, drill into failures to understand what went wrong, apply disposition actions, export results, and read the quality dashboard and score cards.
+
+## Navigate to test results
+
+<Tabs>
+  <Tab title="UI">
+    In the left sidebar, click **Data Quality Testing → Test Runs**. The list shows all past runs with their test suite name, start time, status, test count, and quality score.
+
+    Click any completed run to open the **Test Results** page for that run.
+  </Tab>
+
+  <Tab title="CLI">
+    List all test runs:
+
+    ```bash
+    testgen list-test-runs --display
+    ```
+
+    Fetch results for a specific run:
+
+    ```bash
+    testgen get-test-results --test-run-id <test_run_id> --display
+    ```
+
+    To fetch only failures:
+
+    ```bash
+    testgen get-test-results --test-run-id <test_run_id> --fails-only --display
+    ```
+
+    Results are also written to `get_test_results.csv`.
+  </Tab>
+</Tabs>
+
+## Understanding pass/fail status
+
+Each test result has one of the following statuses:
+
+| Status | Meaning |
+|---|---|
+| **Passed** | The test met its threshold |
+| **Warning** | The test exceeded the warning threshold but not the failure threshold |
+| **Failed** | The test exceeded the failure threshold |
+| **Error** | The test could not execute due to a database or configuration error |
+| **Log** | Informational test that always records but does not trigger a failure |
+| **Dismissed** | A previously failed result that has been marked as not relevant |
+
+The results page opens with the **Failed + Warning** filter applied by default, so you see only results that need attention.
+
+## Filtering results
+
+Use the filter bar at the top of the Test Results page to narrow down what you see:
+
+| Filter | Options |
+|---|---|
+| **Status** | Failed + Warning, Failed, Warning, Passed, Error, Log |
+| **Table** | Any table tested in this run |
+| **Column** | Any column tested in this run |
+| **Test Type** | Filter by a specific test type (e.g., null rate, value range) |
+| **Flagged** | Show only flagged or unflagged results |
+| **Action** | Filter by disposition: Confirmed, Dismissed, Muted, No Action |
+
+You can also sort results by flagged status, notes, table, column, test type, result measure, or status.
+
+## Drilling into a failed test
+
+Click any row to expand the detail panel at the bottom of the page. The panel shows:
+
+- **Test description** — a plain-language explanation of what the test checks
+- **Result message** — the specific reason the test failed (e.g., "Null rate of 23% exceeds threshold of 5%")
+- **Result measure** — the actual measured value
+- **Unit of measure** — the metric being measured (e.g., percent, count)
+- **Test history** — a table and chart of previous results for the same test, so you can see trends over time
+- **Test definition** — the parameters used to run the test, including threshold value, severity, and whether the test is locked or active
+
+From the detail panel you can also:
+- Click **Source Data** to query the database for rows that caused the failure
+- Click **Profiling** to jump to the profiling results for the affected column
+- Click **Edit Test** to modify the test definition
+- Click **Notes** to add or view notes attached to the test definition
+- Click **Issue Report** to download a PDF report for the selected result
+
+## Applying disposition actions
+
+If a test failure is a known issue or false positive, you can apply a disposition to reduce noise in future reviews:
+
+| Action | Effect |
+|---|---|
+| **Confirm (✓)** | Mark the issue as a real problem for this run |
+| **Dismiss (✘)** | Mark the issue as not relevant for this run |
+| **Mute (🔇)** | Deactivate the test definition for future runs |
+| **Clear (↩︎)** | Remove the disposition and restore the default state |
+
+Enable **Multi-Select** to apply a disposition to multiple results at once.
+
+## Exporting results
+
+Click **Export** on the Test Results page to download results as an Excel file. You can choose to export:
+- All results in the run
+- Only the currently filtered results
+- Only the selected rows
+
+## Quality dashboard and score cards
+
+The Quality Dashboard provides a project-level view of data quality over time.
+
+<Tabs>
+  <Tab title="UI">
+    Click **Quality Dashboard** in the left sidebar (under the top-level navigation). The dashboard shows score cards for each table group and test suite combination, including:
+
+    - **Overall DQ score** — an aggregate quality score across all test categories
+    - **CDE score** — score for critical data elements
+    - **Category breakdown** — scores by quality dimension (e.g., completeness, validity, consistency)
+
+    Click any score card to open the **Score Explorer**, where you can drill into individual tables, columns, and test results that contributed to the score.
+
+    Score cards also appear as a score badge on each Test Run and Profiling Run row in the list views.
+  </Tab>
+
+  <Tab title="CLI">
+    Quality scores are computed automatically after each test run. You can view the score for a specific run by fetching its results:
+
+    ```bash
+    testgen get-test-results --test-run-id <test_run_id> --display
+    ```
+
+    The `dq_score_testing` field in the output reflects the run-level quality score.
+  </Tab>
+</Tabs>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Anomaly monitoring" icon="radar" href="/guides/anomaly-monitoring">
+    Set up continuous monitors for freshness, volume, and schema drift.
+  </Card>
+  <Card title="Export to Observability" icon="arrow-up-right" href="/guides/export-to-observability">
+    Push test results to DataOps Observability for pipeline-level monitoring.
+  </Card>
+</CardGroup>

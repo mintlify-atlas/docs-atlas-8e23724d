@@ -1,0 +1,64 @@
+---
+title: "What is DataOps TestGen? Data Quality for Teams"
+description: "DataOps TestGen profiles databases, auto-generates hundreds of validation tests, and continuously monitors for anomalies — open source under Apache 2.0."
+---
+
+DataOps TestGen is an open-source data quality platform built by DataKitchen. It scans your databases, computes detailed column-level statistics through profiling, automatically generates data quality validation tests from those statistics, and continuously watches for anomalies in freshness, volume, schema drift, and custom metrics. TestGen is designed for data engineering teams that need to catch data issues before they reach downstream users or analytical pipelines.
+
+## What problems does it solve
+
+Raw databases accumulate silent quality failures: columns that go null without warning, row counts that quietly drop, schemas that drift between releases, and distributions that shift in ways no single SQL query will reveal. Authoring and maintaining hundreds of manual SQL assertions is tedious and fragile. TestGen automates the entire quality lifecycle — from understanding what the data looks like, to generating appropriate checks, to surfacing failures as they occur.
+
+## Key features
+
+**Data profiling** scans every column in a table group and computes value distributions, nullability rates, uniqueness ratios, data patterns, minimum and maximum values, and more. The resulting profile is the foundation for everything else TestGen does.
+
+**Algorithmic test generation** uses the profile to create hundreds of tailored data quality tests covering completeness, consistency, validity, uniqueness, referential integrity, and statistical thresholds. No SQL or manual test authoring is required.
+
+**Production test execution** runs those tests on every new data refresh and compares results against the generated thresholds. Failures include detailed drill-downs showing which rows and columns failed and why.
+
+**Continuous anomaly monitoring** tracks freshness, row volume, schema changes, and custom metrics over time. Monitors surface anomalies automatically and can send notifications when thresholds are breached.
+
+## Who it is for
+
+TestGen is built for **data engineers** and **data quality engineers** who manage data pipelines and are responsible for ensuring that data consumers — analysts, ML models, and business applications — receive reliable data. It is also useful for **data platform teams** that want a centralized system to enforce quality standards across multiple databases, schemas, and teams.
+
+## Architecture overview
+
+TestGen is composed of four layers:
+
+- **Streamlit UI** — a browser-based application served on port 8501 (default) where you manage connections, table groups, test suites, profiling runs, and test results.
+- **CLI (`testgen`)** — a command-line interface for automating every action available in the UI, including profiling, test generation, test execution, and anomaly monitoring. The CLI is the primary interface for scheduling and pipeline integration.
+- **MCP server** — a Model Context Protocol server that allows AI agents to query profiling results, test outcomes, and anomaly data programmatically.
+- **PostgreSQL backend** — TestGen stores all metadata, profiling results, test definitions, and test results in a PostgreSQL database. The Docker installation includes a bundled PostgreSQL instance; the pip installation requires you to provide one.
+
+## Supported databases
+
+TestGen can profile and test data in the following database engines:
+
+- PostgreSQL
+- Snowflake
+- Amazon Redshift
+- Microsoft SQL Server
+- Databricks
+- Google BigQuery
+- Trino
+- SAP HANA
+- Oracle
+
+## Get started
+
+<CardGroup cols={2}>
+  <Card title="Quick start" icon="rocket" href="/quickstart">
+    Run the demo and see TestGen in action using the dk-installer and a pre-loaded sample dataset.
+  </Card>
+  <Card title="Install with Docker" icon="docker" href="/installation/docker">
+    Deploy TestGen as a Docker Compose application — the recommended installation method.
+  </Card>
+  <Card title="Install with pip" icon="python" href="/installation/pip">
+    Install TestGen as a Python package and connect it to your own PostgreSQL instance.
+  </Card>
+  <Card title="Connect a database" icon="database" href="/guides/connect-database">
+    Point TestGen at your own database and start profiling real data.
+  </Card>
+</CardGroup>

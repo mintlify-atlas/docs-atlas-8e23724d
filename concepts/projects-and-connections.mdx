@@ -1,0 +1,107 @@
+---
+title: "Projects and Connections: TestGen's Data Model Explained"
+description: "Learn how Projects organize your work and how Connections provide TestGen with the credentials and settings needed to reach your target database."
+keywords: ["project", "connection", "database", "credentials", "sql flavor", "data model"]
+---
+
+Every piece of work in DataOps TestGen lives inside a **Project**. A Project is the top-level organizational unit — it groups together all the connections, table groups, test suites, and profiling runs that belong to a single data quality initiative. Within a project, you define one or more **Connections** that tell TestGen how to reach your target databases. Connections then contain **Table Groups**, which scope the tables you want to profile and test. This hierarchy — Project → Connection → Table Group → Test Suite — is the backbone of everything TestGen does.
+
+## Projects
+
+A project is identified by a short, unique **project code** and a human-readable name. All configuration, test results, profiling runs, and monitoring data is scoped to the project. If your organization manages multiple databases or teams, you can create separate projects to keep their configurations and results isolated.
+
+Projects also hold your observability integration settings. If you connect TestGen to DataKitchen DataOps Observability, the API URL and API key are stored at the project level and apply to all test suites within that project.
+
+## Connections
+
+A Connection stores the credentials and settings that TestGen needs to query a target database. Each project can have one connection, and each connection can have multiple table groups pointing at different schemas or subsets of tables.
+
+### Connection fields
+
+| Field | Description |
+|---|---|
+| **Connection name** | A human-readable label for this connection |
+| **Database type** | The SQL flavor (see supported databases below) |
+| **Host** | Hostname or IP address of the database server |
+| **Port** | TCP port for the database (e.g., 5432 for PostgreSQL) |
+| **Database name** | The name of the target database |
+| **Default schema** | The default schema used when querying tables |
+| **User** | The database user TestGen connects as |
+| **Password** | Stored encrypted using a salt and key you configure |
+| **Max threads** | Number of parallel query threads during profiling |
+
+<Note>
+Passwords and private keys are encrypted at rest using the `TG_DECRYPT_SALT` and `TG_DECRYPT_PASSWORD` environment variables. Never store these values in version control. See [Configuration](/operations/configuration) for details.
+</Note>
+
+### Advanced connection options
+
+For databases that support it, you can connect using a full connection URL instead of individual fields. Snowflake and Databricks connections support authentication by private key instead of a password. Azure SQL and Azure Synapse connections support managed identity authentication, which removes the need for a stored password entirely.
+
+### Supported databases
+
+TestGen can connect to the following database engines:
+
+| Database | Type identifier |
+|---|---|
+| PostgreSQL | `postgresql` |
+| Amazon Redshift | `redshift` |
+| Amazon Redshift Spectrum | `redshift_spectrum` |
+| Snowflake | `snowflake` |
+| Microsoft SQL Server | `mssql` |
+| Azure SQL Database | `azure_mssql` |
+| Azure Synapse Analytics | `synapse_mssql` |
+| Databricks | `databricks` |
+| Google BigQuery | `bigquery` |
+| Oracle | `oracle` |
+| SAP HANA | `sap_hana` |
+
+<Tip>
+After saving a connection, use the **Test Connection** button to verify that TestGen can reach your database before you create table groups or run profiling.
+</Tip>
+
+## The data model hierarchy
+
+Understanding the hierarchy helps you plan how to structure your TestGen configuration:
+
+```
+Project
+└── Connection (credentials to reach a database)
+    └── Table Group (a set of tables within a schema to profile together)
+        ├── Profiling Runs (scan results for the table group)
+        └── Test Suite (a collection of data quality tests)
+            └── Test Runs (execution results for a test suite)
+```
+
+A single connection can serve multiple table groups. For example, you might have one table group covering your `raw` schema and another covering your `analytics` schema — both connected to the same database but profiled and tested independently.
+
+Test suites are always associated with a table group, not directly with a connection. This means the tests you generate reflect the specific tables and columns that were profiled in that table group.
+
+<AccordionGroup>
+  <Accordion title="Can I have more than one connection per project?">
+    Currently, each project is designed around a single primary connection. If you need to profile tables from multiple databases or database servers, create a separate project for each one.
+  </Accordion>
+  <Accordion title="What permissions does the database user need?">
+    The database user needs `SELECT` access on all tables you intend to profile and test, plus `SELECT` access on system catalog views that TestGen uses to discover schema metadata. No write access to your target database is required.
+  </Accordion>
+  <Accordion title="Where are passwords stored?">
+    Passwords are encrypted in TestGen's internal PostgreSQL metadata database using AES encryption. The encryption key is derived from the `TG_DECRYPT_SALT` and `TG_DECRYPT_PASSWORD` environment variables. You control those secrets; TestGen never transmits them outside your infrastructure.
+  </Accordion>
+</AccordionGroup>
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Connect a database" icon="database" href="/guides/connect-database">
+    Step-by-step guide to creating your first connection and table group.
+  </Card>
+  <Card title="Table groups and profiling" icon="table" href="/concepts/table-groups-and-profiling">
+    Learn how table groups scope which tables get profiled and what profiling produces.
+  </Card>
+  <Card title="Test suites and tests" icon="check-circle" href="/concepts/test-suites-and-tests">
+    Understand how test suites collect and run data quality checks.
+  </Card>
+  <Card title="Configuration reference" icon="sliders" href="/operations/configuration">
+    All environment variables including encryption key settings.
+  </Card>
+</CardGroup>

@@ -1,122 +1,101 @@
 {
   "$schema": "https://mintlify.com/docs.json",
-  "theme": "mint",
-  "name": "Mint Starter Kit",
+  "name": "DataOps TestGen",
+  "theme": "aspen",
   "colors": {
-    "primary": "#16A34A",
-    "light": "#07C983",
-    "dark": "#15803D"
+    "primary": "#a5ce4f",
+    "light": "#259e4c",
+    "dark": "#eaf4df"
   },
-  "favicon": "/favicon.svg",
+  "favicon": "https://media.brand.dev/182994c0-4147-4b8a-9967-9317509d3b25.png",
+  "logo": {
+    "light": "https://media.brand.dev/7f486ea2-6790-4c60-a5a4-790a50243885.svg",
+    "dark": "https://media.brand.dev/7f486ea2-6790-4c60-a5a4-790a50243885.svg"
+  },
+  "navbar": {
+    "primary": {
+      "type": "github",
+      "href": "https://github.com/DataKitchen/dataops-testgen"
+    }
+  },
+  "footer": {
+    "socials": {
+      "github": "https://github.com/DataKitchen/dataops-testgen"
+    }
+  },
   "navigation": {
     "tabs": [
       {
-        "tab": "Guides",
+        "tab": "Documentation",
         "groups": [
           {
-            "group": "Getting started",
+            "group": "Get Started",
             "pages": [
-              "index",
+              "introduction",
               "quickstart",
-              "development"
+              "installation/docker",
+              "installation/pip"
             ]
           },
           {
-            "group": "Customization",
+            "group": "Core Concepts",
             "pages": [
-              "essentials/settings",
-              "essentials/navigation"
+              "concepts/projects-and-connections",
+              "concepts/table-groups-and-profiling",
+              "concepts/test-suites-and-tests",
+              "concepts/monitors-and-anomalies"
             ]
           },
           {
-            "group": "Writing content",
+            "group": "Using TestGen",
             "pages": [
-              "essentials/markdown",
-              "essentials/code",
-              "essentials/images",
-              "essentials/reusable-snippets"
+              "guides/connect-database",
+              "guides/run-profiling",
+              "guides/generate-and-run-tests",
+              "guides/review-results",
+              "guides/anomaly-monitoring",
+              "guides/export-to-observability"
             ]
           },
           {
-            "group": "AI tools",
+            "group": "Configuration & Operations",
             "pages": [
-              "ai-tools/cursor",
-              "ai-tools/claude-code",
-              "ai-tools/windsurf"
+              "operations/configuration",
+              "operations/scheduling",
+              "operations/notifications",
+              "operations/upgrade"
             ]
           }
         ]
       },
       {
-        "tab": "API reference",
+        "tab": "Reference",
         "groups": [
           {
-            "group": "API documentation",
+            "group": "CLI Reference",
             "pages": [
-              "api-reference/introduction"
+              "reference/cli-overview",
+              "reference/cli-profiling",
+              "reference/cli-testing",
+              "reference/cli-data"
             ]
           },
           {
-            "group": "Endpoint examples",
+            "group": "MCP Server",
             "pages": [
-              "api-reference/endpoint/get",
-              "api-reference/endpoint/create",
-              "api-reference/endpoint/delete",
-              "api-reference/endpoint/webhook"
+              "reference/mcp-overview",
+              "reference/mcp-tools"
+            ]
+          },
+          {
+            "group": "Integrations",
+            "pages": [
+              "reference/database-support",
+              "reference/observability-integration"
             ]
           }
         ]
       }
-    ],
-    "global": {
-      "anchors": [
-        {
-          "anchor": "Documentation",
-          "href": "https://mintlify.com/docs",
-          "icon": "book-open-cover"
-        },
-        {
-          "anchor": "Blog",
-          "href": "https://mintlify.com/blog",
-          "icon": "newspaper"
-        }
-      ]
-    }
-  },
-  "logo": {
-    "light": "/logo/light.svg",
-    "dark": "/logo/dark.svg"
-  },
-  "navbar": {
-    "links": [
-      {
-        "label": "Support",
-        "href": "mailto:hi@mintlify.com"
-      }
-    ],
-    "primary": {
-      "type": "button",
-      "label": "Dashboard",
-      "href": "https://dashboard.mintlify.com"
-    }
-  },
-  "contextual": {
-    "options": [
-     "copy",
-     "view",
-     "chatgpt",
-     "claude",
-     "perplexity",
-     "mcp",
-     "cursor",
-     "vscode"
-   ]
-  },
-  "footer": {
-    "socials": {
-      "x": "https://x.com/mintlify",
-      "github": "https://github.com/mintlify",
-      "linkedin": "https://linkedin.com/company/mintlify"
-    }
+    ]
   }
 }

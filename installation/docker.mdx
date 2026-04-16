@@ -1,0 +1,149 @@
+---
+title: "Install TestGen with Docker Compose and dk-installer"
+description: "Deploy TestGen as a Docker Compose application using dk-installer. Covers prerequisites, port options, SSL, upgrades, and accessing the testgen CLI."
+---
+
+The recommended way to install DataOps TestGen is with the `dk-installer` tool, which deploys TestGen as a Docker Compose application. Docker encapsulates the entire application — including its Python dependencies, PostgreSQL database, and Streamlit UI — in isolated containers, so installation is straightforward and does not interfere with software already on your machine.
+
+<Note>
+  If you prefer to install TestGen as a Python package without Docker, see [Install with pip](/installation/pip).
+</Note>
+
+## Prerequisites
+
+Install the following software before proceeding.
+
+| Software | Tested versions | Check version |
+|---|---|---|
+| Python | 3.9, 3.10, 3.11, 3.12 | `python3 --version` |
+| Docker | 26.1, 27.5, 28.0 | `docker -v` |
+| Docker Compose | 2.32, 2.33, 2.34 | `docker compose version` |
+
+Python is required only to run the installer script. Docker Desktop on Mac and Windows includes Docker Compose. On Linux, install the Docker Compose plugin separately.
+
+## Install TestGen
+
+<Steps>
+  <Step title="Create a working directory">
+    Create a new, empty directory and navigate into it. All installer commands must be run from this directory, as the installer places configuration files here.
+
+    ```bash
+    mkdir testgen && cd testgen
+    ```
+  </Step>
+
+  <Step title="Download dk-installer">
+    Download the installer script with `curl`.
+
+    ```bash
+    curl -o dk-installer.py 'https://raw.githubusercontent.com/DataKitchen/data-observability-installer/main/dk-installer.py'
+    ```
+
+    Alternatively, download `dk-installer.py` manually from the [data-observability-installer](https://github.com/DataKitchen/data-observability-installer) repository.
+  </Step>
+
+  <Step title="Run the installer">
+    Run the installation command. This downloads the latest Docker images and starts the Docker Compose application. The process typically takes 5–10 minutes.
+
+    ```bash
+    python3 dk-installer.py tg install
+    ```
+
+    When installation completes, the output displays the URL and login credentials for the TestGen UI.
+
+    <Tip>
+      Use `python3 dk-installer.py --help` or `python3 dk-installer.py tg --help` to see all available options.
+    </Tip>
+  </Step>
+
+  <Step title="Verify login">
+    Open the URL from the installer output in your browser (default: [http://localhost:8501](http://localhost:8501)) and log in with the credentials provided.
+  </Step>
+</Steps>
+
+## Installation options
+
+### Custom port
+
+By default, the TestGen UI runs on port 8501. Use `--port` to specify a different port.
+
+```bash
+python3 dk-installer.py tg install --port 9000
+```
+
+### SSL / HTTPS
+
+To serve the UI over HTTPS, provide paths to your SSL certificate and private key files.
+
+```bash
+python3 dk-installer.py tg install --ssl-cert-file /path/to/cert.pem --ssl-key-file /path/to/key.pem
+```
+
+## Useful operations
+
+### Upgrade to the latest version
+
+New releases are announced in the `#releases` channel on [Data Observability Slack](https://data-observability-slack.datakitchen.io/join). To upgrade your installation:
+
+```bash
+python3 dk-installer.py tg upgrade
+```
+
+### Stop the application
+
+```bash
+docker compose down
+```
+
+### Restart the application
+
+```bash
+docker compose up -d
+```
+
+### Uninstall TestGen
+
+The following command stops and removes all containers, images, and data associated with TestGen.
+
+<Warning>
+  This action is irreversible. All profiling results, test definitions, and test history stored in the application database will be permanently deleted.
+</Warning>
+
+```bash
+python3 dk-installer.py tg delete
+```
+
+## Access the testgen CLI inside the container
+
+The `testgen` command-line interface runs inside the Docker container. To access it, open a shell in the `engine` container.
+
+```bash
+docker compose exec engine bash
+```
+
+From this shell you can run any `testgen` subcommand — for example:
+
+```bash
+testgen --help
+testgen list-projects
+testgen run-profile --table-group-id <id>
+```
+
+Use `exit` to return to your regular terminal.
+
+## Next steps
+
+<CardGroup cols={2}>
+  <Card title="Run the demo" icon="play" href="/quickstart">
+    Load sample data and see the full TestGen workflow with a single command.
+  </Card>
+  <Card title="Connect your database" icon="database" href="/guides/connect-database">
+    Configure a connection to your PostgreSQL, Snowflake, Redshift, or other supported database.
+  </Card>
+  <Card title="Run profiling" icon="chart-bar" href="/guides/run-profiling">
+    Profile your tables to generate the statistics that drive automated test generation.
+  </Card>
+  <Card title="CLI reference" icon="terminal" href="/reference/cli-overview">
+    Explore all available testgen CLI commands for automation and pipeline integration.
+  </Card>
+</CardGroup>

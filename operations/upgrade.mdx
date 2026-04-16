@@ -1,0 +1,121 @@
+---
+title: "Upgrade your TestGen installation to the latest release"
+description: "Steps to upgrade Docker and pip TestGen installations, apply schema migrations, check the schema revision number, and stay informed about new releases."
+---
+
+TestGen releases are published to both Docker Hub and PyPI. When a new version is available, upgrading involves pulling the latest image or package and running the `upgrade-system-version` command to apply any pending database schema migrations. Schema migrations run automatically when needed, so no manual SQL is required.
+
+New releases are announced on the `#releases` channel in the [Data Observability Slack](https://data-observability-slack.datakitchen.io/join). Release notes are published at [docs.datakitchen.io](https://docs.datakitchen.io/testgen/release-notes/).
+
+<Tabs>
+  <Tab title="Docker (dk-installer)">
+
+    The `dk-installer` script manages the full upgrade lifecycle for Docker installations. Run all commands from the directory that contains your `dk-installer.py` and `docker-compose.yml` files.
+
+    <Steps>
+      <Step title="Download the latest installer (optional)">
+        If you have an older copy of `dk-installer.py`, refresh it to get the latest upgrade logic.
+
+        ```bash
+        curl -o dk-installer.py 'https://raw.githubusercontent.com/DataKitchen/data-observability-installer/main/dk-installer.py'
+        ```
+      </Step>
+      <Step title="Run the upgrade command">
+        The installer pulls the latest TestGen Docker images, stops the running containers, and starts updated ones.
+
+        ```bash
+        python3 dk-installer.py tg upgrade
+        ```
+
+        The process typically takes 2–5 minutes depending on your network connection and machine speed.
+      </Step>
+      <Step title="Verify the upgrade">
+        Open the TestGen UI and check the version number displayed in the sidebar menu. Alternatively, inspect the running container:
+
+        ```bash
+        docker compose exec engine testgen --help
+        ```
+
+        The `testgen` help output includes the current version and schema revision.
+      </Step>
+    </Steps>
+
+    <Note>
+      The `upgrade-system-version` CLI command runs automatically as part of `dk-installer.py tg upgrade`. You do not need to run it separately for Docker installations.
+    </Note>
+
+  </Tab>
+  <Tab title="pip">
+
+    For pip installations, upgrade the Python package first, then run the CLI migration command.
+
+    <Steps>
+      <Step title="Activate your virtual environment">
+        If you installed TestGen in a virtual environment (recommended), activate it before upgrading.
+
+        ```bash
+        source venv/bin/activate
+        ```
+      </Step>
+      <Step title="Upgrade the package">
+        Pull the latest version from PyPI.
+
+        ```bash
+        pip install --upgrade dataops-testgen
+        ```
+      </Step>
+      <Step title="Set environment variables">
+        Make sure the environment variables required to connect to the application database are in scope. If you use a `local.env` file:
+
+        ```bash
+        source local.env
+        ```
+      </Step>
+      <Step title="Run the upgrade command">
+        Apply any pending database schema migrations.
+
+        ```bash
+        testgen upgrade-system-version
+        ```
+
+        The command reports whether an upgrade was applied or whether the schema was already up to date.
+      </Step>
+      <Step title="Restart the application">
+        Start TestGen with the updated package.
+
+        ```bash
+        testgen run-app
+        ```
+      </Step>
+    </Steps>
+
+    <Tip>
+      If you run TestGen with an outdated schema, TestGen detects the mismatch at startup and automatically runs `upgrade-system-version` before executing the requested command. You can rely on this behavior, but it is better practice to run the upgrade explicitly after updating the package.
+    </Tip>
+
+  </Tab>
+</Tabs>
+
+## Schema migrations
+
+TestGen uses Alembic to manage database schema versions. When `upgrade-system-version` runs, it compares the current schema revision stored in the database against the revision expected by the installed package version and applies any missing migration scripts in order.
+
+To check the current schema revision without performing an upgrade, run:
+
+```bash
+testgen --help
+```
+
+The help output includes a line showing the current schema revision, for example:
+
+```text
+Schema revision: a1b2c3d4e5f6
+```
+
+<Warning>
+  Back up your application database before upgrading if you manage the database yourself (pip installation). Docker installations managed by `dk-installer` store data in named Docker volumes; back those up according to your platform's procedures.
+</Warning>
+
+## Staying informed about releases
+
+Join the [Data Observability Slack](https://data-observability-slack.datakitchen.io/join) and subscribe to the `#releases` channel to receive notifications when new TestGen versions are published. Full release notes, including breaking changes and migration notes, are available at [docs.datakitchen.io/testgen/release-notes/](https://docs.datakitchen.io/testgen/release-notes/).

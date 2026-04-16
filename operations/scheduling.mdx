@@ -1,0 +1,107 @@
+---
+title: "Schedule automated profiling and test runs in TestGen"
+description: "How the TestGen cron scheduler dispatches jobs, configure schedules in the UI per table group or suite, and run profiling and tests via the CLI."
+---
+
+TestGen includes a built-in scheduler that runs profiling, test, and monitor jobs on a recurring cron schedule without requiring an external orchestrator. When you start TestGen with `testgen run-app` (or `run-app all`), the scheduler process starts alongside the UI and waits for scheduled jobs stored in the application database. Changes made to schedules in the UI take effect within the next scheduling cycle — no restart is required.
+
+## How the scheduler works
+
+The scheduler runs as a separate process within the TestGen application. It polls the `job_schedules` table in the application database every minute and builds an in-memory queue of upcoming job triggers. When a trigger time arrives, the scheduler launches the corresponding CLI command as a subprocess, up to a maximum of three concurrent jobs.
+
+Each scheduled job entry stores:
+- **Job key** — the CLI command to run (for example, `run-profile`)
+- **Cron expression** — when to run the job
+- **Timezone** — the timezone in which the cron expression is evaluated
+- **Arguments and options** — the specific table group ID or test suite ID to pass to the command
+
+Jobs with a missed trigger time (for example, because TestGen was stopped during the scheduled window) are skipped by default. The scheduler moves on to the next scheduled occurrence.
+
+## Schedulable commands
+
+Three CLI commands can be registered as scheduled jobs. They are decorated with `@register_scheduler_job` in the TestGen codebase:
+
+| Job key | CLI command | What it runs |
+|---|---|---|
+| `run-profile` | `testgen run-profile` | Profiles a table group |
+| `run-tests` | `testgen run-tests` | Runs tests for a test suite |
+| `run-monitors` | `testgen run-monitors` | Runs monitors for a monitor suite |
+
+These correspond to the constants `RUN_PROFILE_JOB_KEY`, `RUN_TESTS_JOB_KEY`, and `RUN_MONITORS_JOB_KEY` in the scheduler model.
+
+<Note>
+  Test run and monitor jobs are only dispatched when the associated test suite has at least one test definition. Schedules for empty suites are silently skipped.
+</Note>
+
+## Configuring schedules in the UI
+
+Schedules are managed on the **Connections** page of the TestGen UI. For each connection you can open the associated table groups and test suites to view and edit their schedules.
+
+To add or modify a schedule:
+
+<Steps>
+  <Step title="Open the Connections page">
+    In the TestGen UI sidebar, navigate to **Connections**. Select the project and connection you want to schedule.
+  </Step>
+  <Step title="Open the table group or test suite">
+    Expand the connection to see its table groups. Click the schedule icon next to the table group (for profiling) or test suite (for test and monitor runs).
+  </Step>
+  <Step title="Enter a cron expression">
+    Type a valid cron expression and select the timezone. The UI shows the next three trigger times as a preview so you can verify the schedule before saving.
+  </Step>
+  <Step title="Save the schedule">
+    Click **Save**. The scheduler picks up the new schedule at the next reload cycle (within approximately one minute).
+  </Step>
+</Steps>
+
+To disable a schedule without deleting it, toggle the **Active** switch on the schedule entry.
+
+## Cron expression format
+
+TestGen uses standard five-field cron expressions. The fields represent minute, hour, day-of-month, month, and day-of-week, in that order.
+
+```text
+┌───────────── minute (0–59)
+│ ┌───────────── hour (0–23)
+│ │ ┌───────────── day of month (1–31)
+│ │ │ ┌───────────── month (1–12)
+│ │ │ │ ┌───────────── day of week (0–6, Sunday = 0)
+│ │ │ │ │
+* * * * *
+```
+
+Common examples:
+
+| Expression | Meaning |
+|---|---|
+| `0 6 * * *` | Every day at 06:00 |
+| `0 0 * * 1` | Every Monday at midnight |
+| `0 */6 * * *` | Every 6 hours |
+| `30 8 * * 1-5` | Weekdays at 08:30 |
+| `0 2 1 * *` | First day of every month at 02:00 |
+
+<Tip>
+  Schedule profiling runs before dependent test runs. For example, if profiling runs at `0 2 * * *` and tests rely on fresh profile data, schedule test runs at `0 4 * * *` to allow profiling to complete first.
+</Tip>
+
+## Running scheduled commands manually via CLI
+
+You can invoke any schedulable command directly from the CLI without waiting for the scheduler. This is useful for on-demand runs or for testing that a schedule configuration is correct.
+
+<CodeGroup>
+
+```bash Profile a table group
+testgen run-profile --table-group-id <table_group_id>
+```
+
+```bash Run tests for a suite
+testgen run-tests --test-suite-id <test_suite_id>
+```
+
+```bash Run monitors for a suite
+testgen run-monitors --test-suite-id <test_suite_id>
+```
+
+</CodeGroup>
+
+Use `testgen list-table-groups` and `testgen list-test-suites` to find the IDs needed for these commands.
